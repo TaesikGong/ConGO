@@ -1,7 +1,7 @@
 """
 """
 import tensorflow as tf
-
+from time import gmtime, strftime
 
 def custom_dynamic_rnn(cell, inputs, output_dim=None, output_conditioned=False,
                        sequence_length=None, initial_state=None,
@@ -52,6 +52,12 @@ def custom_dynamic_rnn(cell, inputs, output_dim=None, output_conditioned=False,
         # first input
         input = inputs[:, 0]
 
+        #TODO:conv for reshape 64,64,2048 -> 64,64,1
+        def init_weights(shape):
+            return tf.Variable(tf.random_normal(shape, stddev=0.01))
+
+        matrix = init_weights([1, 1, 2048, 1])  # TODO:right???
+
         # one timestep of RNN
         def _time_step(time, input, outputs_ta, state):
             input = input_operation(input, name='input_operation')
@@ -59,6 +65,11 @@ def custom_dynamic_rnn(cell, inputs, output_dim=None, output_conditioned=False,
 
             if output_dim is not None:
                 output = output_activation(fc(output, output_dim, 'rnn_output'))
+
+            #TODO:my
+            else:
+                output = tf.nn.conv2d(output, matrix, strides=[1, 1, 1, 1], padding='SAME')
+
 
             output = output_operation(output, name='output_operation')
             outputs_ta = outputs_ta.write(time, output)
@@ -98,7 +109,6 @@ def fc(tensor, dim, name):
                                  initializer=tf.constant_initializer(0.0))
 
         fc = tf.nn.xw_plus_b(tensor, weights, biases)
-
         return fc
 
 
@@ -133,9 +143,12 @@ class ConvRNNCell(object):
         """
 
         shape = self.shape
+
         zeros = tuple(tf.zeros([batch_size, shape[1], shape[2], shape[3]])
-                      for _ in range(len(self.state_shape)))
+                               for _ in range(len(self.state_shape)))
         zeros = tf.contrib.rnn.LSTMStateTuple(zeros[0], zeros[1])
+
+
         return zeros
 
 
@@ -148,7 +161,7 @@ class ConvLSTMCell(ConvRNNCell):
 
     def __init__(self, shape, filter_size, use_peepholes=False,
                  forget_bias=1.0, input_size=None, activation=tf.nn.tanh,
-                 initializer=None):
+                 initializer=None, idx=0):
         """Initialize the basic Conv LSTM cell.
         Args:
           shape: int tuple thats the height and width of the cell
@@ -161,17 +174,22 @@ class ConvLSTMCell(ConvRNNCell):
         # if not state_is_tuple:
         # logging.warn("%s: Using a concatenated state is slower and will soon be "
         #             "deprecated.  Use state_is_tuple=True.", self)
+
         if input_size is not None:
             tf.logging.warn("%s: The input_size parameter is deprecated.", self)
         self.shape = shape
         self.filter_size = filter_size
-        self._use_peepholes = use_peepholes
+        self._use_peepholes = use_peepholes##
         self._forget_bias = forget_bias
         self._activation = activation
-        self._initializer = initializer
+        self._initializer = initializer ##
+
+        #TODO:conv
+        self.idx = idx
 
     @property
     def state_shape(self):
+        #TODO:original
         return tf.contrib.rnn.LSTMStateTuple(self.shape, self.shape)
 
     @property
@@ -180,14 +198,19 @@ class ConvLSTMCell(ConvRNNCell):
 
     def __call__(self, inputs, state, scope=None):
         """Long short-term memory cell (LSTM)."""
-        with tf.variable_scope(scope or type(self).__name__,
+        with tf.variable_scope(scope or type(self).__name__+str(self.idx),
                                initializer=self._initializer):  # "BasicLSTMCell"
             # Parameters of gates are concatenated into one multiply for efficiency.
             c, h = state
-            concat = _conv([inputs, h], self.filter_size, self.shape[3] * 4, True)
+
+            # TODO:original
+            # concat = _conv([inputs, h], self.filter_size, self.shape[3] * 4, True)
+
+            # TODO:conv
+            concat = _conv([inputs, h], self.filter_size, self.shape[3] * 4, True, idx=self.idx)
 
             # i = input_gate, j = new_input, f = forget_gate, o = output_gate
-            i, j, f, o = tf.split(value=concat, num_or_size_splits=4, axis=3)
+            i, j, f, o = tf.split(axis=3, value=concat, num_or_size_splits=4)
 
             # Diagonal connections
             if self._use_peepholes:
@@ -257,7 +280,7 @@ class MultiRNNCell(ConvRNNCell):
         return cur_inp, new_states
 
 
-def _conv(args, filter_size, num_features, bias, bias_start=0.0, scope=None):
+def _conv(args, filter_size, num_features, bias, bias_start=0.0, scope=None, idx=0):
     """convolution:
     Args:
       args: a 4D Tensor or a list of 4D, batch x n, Tensors.
@@ -285,13 +308,17 @@ def _conv(args, filter_size, num_features, bias, bias_start=0.0, scope=None):
     dtype = [a.dtype for a in args][0]
 
     # Now the computation.
+
+
     with tf.variable_scope(scope or "Conv"):
+
         matrix = tf.get_variable(
-            "filters", [filter_size[0], filter_size[1], total_arg_size_depth, num_features], dtype=dtype)
+          "filters", [filter_size[0], filter_size[1], total_arg_size_depth, num_features], dtype=dtype)
+
         if len(args) == 1:
             res = tf.nn.conv2d(args[0], matrix, strides=[1, 1, 1, 1], padding='SAME')
         else:
-            res = tf.nn.conv2d(tf.concat(args, 3), matrix, strides=[1, 1, 1, 1], padding='SAME')
+            res = tf.nn.conv2d(tf.concat(values=args, axis=3), matrix, strides=[1, 1, 1, 1], padding='SAME')
         if not bias:
             return res
         bias_term = tf.get_variable(
