@@ -10,7 +10,7 @@ def vid_show_thread(output_vid):
         cv2.imshow('vid', output_vid[i])
         cv2.waitKey(100)
 
-
+#comment
 class pred_model:
     def __init__(self):
         with tf.device('/gpu:0'):
