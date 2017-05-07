@@ -38,9 +38,9 @@ class pred_model:
             print('cell declaration...')
 
             batch_size = 40
-            dim1 = 64
-            dim2 = 256
-            cell_dim = 1024
+            dim1 = 16
+            dim2 = 64
+            cell_dim = 256
             enc_cell = self.__lstm_cell(cell_dim, 2)  # expressive power: 2048
             fut_cell = self.__lstm_cell(cell_dim, 2)
 
@@ -96,14 +96,14 @@ class pred_model:
 
 
             #TODO: multi cell
-            # state mapping
-            # repr = enc_cell.zero_state(s[0], tf.float32)
-            # repr = (
-            #     tf.contrib.rnn.LSTMStateTuple(enc_s[0][0], repr[0][1]),
-            #     tf.contrib.rnn.LSTMStateTuple(enc_s[1][0], repr[1][1]))
+
+            repr = enc_cell.zero_state(s[0], tf.float32)
+            repr = (
+                tf.contrib.rnn.LSTMStateTuple(enc_s[0][0], repr[0][1]),
+                tf.contrib.rnn.LSTMStateTuple(enc_s[1][0], repr[1][1]))
 
             #TODO: single cell
-            repr = enc_s
+            # repr = enc_s
 
             # future prediction
 
@@ -153,16 +153,16 @@ class pred_model:
         # return multi_cell
 
         #TODO:multi cell
-        # cells = [rnn.ConvLSTMCell([None, 7, 7, cell_dim], [5, 5], use_peepholes=True, forget_bias=0.,
-        #                                                initializer=tf.random_uniform_initializer(-0.01, 0.01))
-        #          for _ in range(num_multi_cells)]
-        #
-        # multi_cell = rnn.MultiRNNCell(cells)
-        # return multi_cell
+        cells = [rnn.ConvLSTMCell([None, 7, 7, cell_dim], [5, 5], use_peepholes=True, forget_bias=0.,
+                                                       initializer=tf.random_uniform_initializer(-0.01, 0.01))
+                 for _ in range(num_multi_cells)]
+
+        multi_cell = rnn.MultiRNNCell(cells)
+        return multi_cell
 
         # TODO:single cell
-        cell = rnn.ConvLSTMCell([None, 7, 7, cell_dim], [3, 3], use_peepholes=True, forget_bias=0.,
-                                  initializer=tf.random_uniform_initializer(-0.01, 0.01))
+        # cell = rnn.ConvLSTMCell([None, 7, 7, cell_dim], [3, 3], use_peepholes=True, forget_bias=0.,
+        #                           initializer=tf.random_uniform_initializer(-0.01, 0.01))
         return cell
 
     def __momentum_optimizer_op(self, cost):

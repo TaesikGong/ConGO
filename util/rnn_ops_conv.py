@@ -267,7 +267,7 @@ class MultiRNNCell(ConvRNNCell):
             for i, cell in enumerate(self._cells):
                 with tf.variable_scope("cell_%d" % i):
                     cur_state = state[i]
-                cur_inp, new_state = cell(cur_inp, cur_state)
+                    cur_inp, new_state = cell(cur_inp, cur_state)
                 new_states.append(new_state)
         new_states = tuple(new_states)
         return cur_inp, new_states
