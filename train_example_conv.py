@@ -13,7 +13,7 @@ def vid_show_thread(output_vid):
 
 class pred_model:
     def __init__(self):
-        with tf.device('/cpu:0'):
+        with tf.device('/gpu:0'):
             self.input_frames = tf.placeholder(tf.float32, shape=[None, None, 64, 64, 1], name='input_frames')
             self.fut_frames = tf.placeholder(tf.float32, shape=[None, None, 64, 64, 1], name='future_frames')
             self.keep_prob = tf.Variable(1.0, dtype=tf.float32, trainable=False, name='keep_prob')
@@ -36,31 +36,84 @@ class pred_model:
 
             # cell declaration
             print('cell declaration...')
-            enc_cell = self.__lstm_cell(2048, 2, 0)  # expressive power: 2048
-            fut_cell = self.__lstm_cell(2048, 2, 5)
+
+            batch_size = 40
+            dim1 = 64
+            dim2 = 256
+            cell_dim = 1024
+            enc_cell = self.__lstm_cell(cell_dim, 2)  # expressive power: 2048
+            fut_cell = self.__lstm_cell(cell_dim, 2)
+
+
+            def conv_to_input(input, name):
+
+                with tf.variable_scope(name):
+                    # tensor = tf.identity(input, name)
+
+                    cv1_f = tf.get_variable("cv1_f", shape=[3, 3, 1, dim1],
+                                              initializer=tf.random_uniform_initializer(-0.01, 0.01))
+                    cv1 = tf.nn.conv2d(input, cv1_f, strides=[1, 2, 2, 1], padding='VALID')
+
+                    cv2_f = tf.get_variable("cv2_f", shape=[3, 3, dim1, dim2],
+                                            initializer=tf.random_uniform_initializer(-0.01, 0.01))
+                    cv2 = tf.nn.conv2d(cv1, cv2_f, strides=[1, 2, 2, 1], padding='VALID')
+
+                    cv3_f = tf.get_variable("cv3_f", shape=[3, 3, dim2, cell_dim],
+                                            initializer=tf.random_uniform_initializer(-0.01, 0.01))
+                    cv3 = tf.nn.conv2d(cv2, cv3_f, strides=[1, 2, 2, 1], padding='VALID')
+
+                    return cv3
+
+            def conv_to_output(input, name):
+
+                with tf.variable_scope(name):
+
+                    # input = ?,7,7,2048
+                    shape1 = [batch_size, 15, 15, dim2]
+                    dcv1_f = tf.get_variable("dcv1_f", shape=[3, 3, dim2, cell_dim],
+                                            initializer=tf.random_uniform_initializer(-0.01, 0.01))
+                    dcv1 = tf.nn.conv2d_transpose(input, dcv1_f, output_shape=shape1,
+                                                  strides=[1, 2, 2, 1], padding='VALID')
+
+                    shape2 = [batch_size, 31, 31, dim1]
+                    dcv2_f = tf.get_variable("dcv2_f", shape=[3, 3, dim1, dim2],
+                                            initializer=tf.random_uniform_initializer(-0.01, 0.01))
+                    dcv2 = tf.nn.conv2d_transpose(dcv1, dcv2_f, output_shape=shape2,
+                                                  strides=[1, 2, 2, 1], padding='VALID')
+
+                    shape3 = [batch_size, 64, 64, 1]
+                    dcv3_f = tf.get_variable("dcv3_f", shape=[3, 3, 1, dim1],
+                                            initializer=tf.random_uniform_initializer(-0.01, 0.01))
+                    dcv3 = tf.nn.conv2d_transpose(dcv2, dcv3_f, output_shape=shape3,
+                                                  strides=[1, 2, 2, 1], padding='VALID')
+
+                return dcv3
 
             # encode frames
             print('encode frames...')
-            enc_o, enc_s = rnn.custom_dynamic_rnn(enc_cell, input_norm, name='enc_rnn', scope='enc_cell')
+            enc_o, enc_s = rnn.custom_dynamic_rnn(enc_cell, input_norm, input_operation=conv_to_input,
+                                                  name='enc_rnn', scope='enc_cell')
 
+
+            #TODO: multi cell
             # state mapping
-            repr = enc_cell.zero_state(s[0], tf.float32)
-
-            #TODO: old
+            # repr = enc_cell.zero_state(s[0], tf.float32)
             # repr = (
             #     tf.contrib.rnn.LSTMStateTuple(enc_s[0][0], repr[0][1]),
             #     tf.contrib.rnn.LSTMStateTuple(enc_s[1][0], repr[1][1]))
 
-            #TODO: conv
+            #TODO: single cell
             repr = enc_s
 
             # future prediction
 
             print('future prediction...')
-            fut_dummy = tf.zeros_like(fut_norm)
+
+            fut_dummy = tf.zeros_like(enc_o)
             #TODO: output_dim = None!
-            fut_o, fut_s = rnn.custom_dynamic_rnn(fut_cell, fut_dummy, output_conditioned=False, output_dim=None,
-                                                  output_activation=tf.identity,
+            fut_o, fut_s = rnn.custom_dynamic_rnn(fut_cell, fut_dummy,
+                                                  output_operation=conv_to_output, output_conditioned=False,
+                                                  output_dim=None, output_activation=tf.identity,
                                                   initial_state=repr, name='dec_rnn', scope='dec_cell')
 
             # future ground-truth (0 or 1)
@@ -74,7 +127,7 @@ class pred_model:
             ## fut_o: ?,?,4096
             ## fut_logit: ?,?,4096
 
-            self.fut_loss = tf.reduce_mean(tf.reduce_sum(self.fut_loss, [2]))
+            self.fut_loss = tf.reduce_mean(tf.reduce_sum(self.fut_loss, [2, 3, 4]))#?,?,4096 -> ?,?,64,64,1
 
 
             # optimizer
@@ -86,7 +139,7 @@ class pred_model:
             print('output future frames...')
             self.fut_output = tf.cast(tf.clip_by_value(tf.sigmoid(fut_o) * 255, 0, 255), tf.uint8)
 
-    def __lstm_cell(self, cell_dim, num_multi_cells, idx):
+    def __lstm_cell(self, cell_dim, num_multi_cells):
 
         #TODO:old
         # cells = [tf.contrib.rnn.core_rnn_cell.LSTMCell(cell_dim, use_peepholes=True, forget_bias=0.,
@@ -99,14 +152,16 @@ class pred_model:
         # multi_cell = tf.contrib.rnn.core_rnn_cell.MultiRNNCell(drop_cells)
         # return multi_cell
 
-        #TODO:conv
-        # cells = [rnn.ConvLSTMCell([None, 64, 64, cell_dim], [5, 5], use_peepholes=True, forget_bias=0.,
-        #                                                initializer=tf.random_uniform_initializer(-0.01, 0.01), idx=idx+_)
+        #TODO:multi cell
+        # cells = [rnn.ConvLSTMCell([None, 7, 7, cell_dim], [5, 5], use_peepholes=True, forget_bias=0.,
+        #                                                initializer=tf.random_uniform_initializer(-0.01, 0.01))
         #          for _ in range(num_multi_cells)]
+        #
+        # multi_cell = rnn.MultiRNNCell(cells)
+        # return multi_cell
 
-        #multi_cell = rnn.MultiRNNCell(cells)
-
-        cell = rnn.ConvLSTMCell([None, 64, 64, cell_dim], [5, 5], use_peepholes=True, forget_bias=0.,
+        # TODO:single cell
+        cell = rnn.ConvLSTMCell([None, 7, 7, cell_dim], [3, 3], use_peepholes=True, forget_bias=0.,
                                   initializer=tf.random_uniform_initializer(-0.01, 0.01))
         return cell
 
@@ -134,7 +189,7 @@ class pred_model:
 
 if __name__ == '__main__':
     opts = mm_data.BouncingMNISTDataHandler.options()
-    opts.batch_size = 4  # 80
+    opts.batch_size = 40  # 80
     opts.image_size = 64
     opts.num_digits = 2
     opts.num_frames = 20##first half is for input, latter is ground-truth
