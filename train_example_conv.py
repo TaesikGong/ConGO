@@ -19,7 +19,7 @@ class pred_model:
             self.keep_prob = tf.Variable(1.0, dtype=tf.float32, trainable=False, name='keep_prob')
             self.weight_decay = tf.Variable(1e-4, dtype=tf.float32, trainable=False, name='weight_decay')
             self.learning_rate = tf.Variable(1e-4, dtype=tf.float32, trainable=False, name='learning_rate')
-            # self.learning_rate = tf.Variable(1e-3, dtype=tf.float32, trainable=False, name='learning_rate')
+            # self.learning_rate = tf.Variable(1e-2, dtype=tf.float32, trainable=False, name='learning_rate')
 
             # data refinement
             s = tf.shape(self.input_frames)
@@ -97,8 +97,7 @@ class pred_model:
                                              initializer=tf.random_uniform_initializer(-0.01, 0.01))
                     dcv3_b = tf.get_variable("weights_dcv3_b", shape=[1],
                                              initializer=tf.constant_initializer(bias_start))
-                    dcv3 = tf.nn.relu(tf.nn.conv2d_transpose(dcv2, dcv3_f, output_shape=shape3,
-                                                             strides=[1, 2, 2, 1], padding='VALID') + dcv3_b)
+                    dcv3 = tf.nn.conv2d_transpose(dcv2, dcv3_f, output_shape=shape3, strides=[1, 2, 2, 1], padding='VALID') + dcv3_b
 
                 return dcv3
 
@@ -202,7 +201,7 @@ class pred_model:
 
 if __name__ == '__main__':
     opts = mm_data.BouncingMNISTDataHandler.options()
-    opts.batch_size = 10  # 80
+    opts.batch_size = 40  # 80
     opts.image_size = 64
     opts.num_digits = 2
     opts.num_frames = 20##first half is for input, latter is ground-truth
