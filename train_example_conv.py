@@ -12,13 +12,14 @@ def vid_show_thread(output_vid):
 
 #comment
 class pred_model:
-    def __init__(self):
+    def __init__(self, batch_size=80):
         with tf.device('/gpu:0'):
             self.input_frames = tf.placeholder(tf.float32, shape=[None, None, 64, 64, 1], name='input_frames')
             self.fut_frames = tf.placeholder(tf.float32, shape=[None, None, 64, 64, 1], name='future_frames')
             self.keep_prob = tf.Variable(1.0, dtype=tf.float32, trainable=False, name='keep_prob')
             self.weight_decay = tf.Variable(1e-4, dtype=tf.float32, trainable=False, name='weight_decay')
             self.learning_rate = tf.Variable(1e-4, dtype=tf.float32, trainable=False, name='learning_rate')
+            # self.learning_rate = tf.Variable(1e-3, dtype=tf.float32, trainable=False, name='learning_rate')
 
             # data refinement
             s = tf.shape(self.input_frames)
@@ -37,10 +38,10 @@ class pred_model:
             # cell declaration
             print('cell declaration...')
 
-            batch_size = 40
             dim1 = 16
             dim2 = 64
             cell_dim = 256
+            bias_start = 0.0
             enc_cell = self.__lstm_cell(cell_dim, 2)  # expressive power: 2048
             fut_cell = self.__lstm_cell(cell_dim, 2)
 
@@ -50,17 +51,23 @@ class pred_model:
                 with tf.variable_scope(name):
                     # tensor = tf.identity(input, name)
 
-                    cv1_f = tf.get_variable("cv1_f", shape=[3, 3, 1, dim1],
+                    cv1_f = tf.get_variable("weights_cv1_f", shape=[3, 3, 1, dim1],
                                               initializer=tf.random_uniform_initializer(-0.01, 0.01))
-                    cv1 = tf.nn.conv2d(input, cv1_f, strides=[1, 2, 2, 1], padding='VALID')
+                    cv1_b = tf.get_variable("weights_cv1_b", shape=[dim1],
+                                            initializer=tf.constant_initializer(bias_start))
+                    cv1 = tf.nn.relu(tf.nn.conv2d(input, cv1_f, strides=[1, 2, 2, 1], padding='VALID') + cv1_b)
 
-                    cv2_f = tf.get_variable("cv2_f", shape=[3, 3, dim1, dim2],
+                    cv2_f = tf.get_variable("weights_cv2_f", shape=[3, 3, dim1, dim2],
                                             initializer=tf.random_uniform_initializer(-0.01, 0.01))
-                    cv2 = tf.nn.conv2d(cv1, cv2_f, strides=[1, 2, 2, 1], padding='VALID')
+                    cv2_b = tf.get_variable("weights_cv2_b", shape=[dim2],
+                                            initializer=tf.constant_initializer(bias_start))
+                    cv2 = tf.nn.relu(tf.nn.conv2d(cv1, cv2_f, strides=[1, 2, 2, 1], padding='VALID') + cv2_b)
 
-                    cv3_f = tf.get_variable("cv3_f", shape=[3, 3, dim2, cell_dim],
+                    cv3_f = tf.get_variable("weights_cv3_f", shape=[3, 3, dim2, cell_dim],
                                             initializer=tf.random_uniform_initializer(-0.01, 0.01))
-                    cv3 = tf.nn.conv2d(cv2, cv3_f, strides=[1, 2, 2, 1], padding='VALID')
+                    cv3_b = tf.get_variable("weights_cv3_b", shape=[cell_dim],
+                                            initializer=tf.constant_initializer(bias_start))
+                    cv3 = tf.nn.relu(tf.nn.conv2d(cv2, cv3_f, strides=[1, 2, 2, 1], padding='VALID') + cv3_b)
 
                     return cv3
 
@@ -70,22 +77,28 @@ class pred_model:
 
                     # input = ?,7,7,2048
                     shape1 = [batch_size, 15, 15, dim2]
-                    dcv1_f = tf.get_variable("dcv1_f", shape=[3, 3, dim2, cell_dim],
-                                            initializer=tf.random_uniform_initializer(-0.01, 0.01))
-                    dcv1 = tf.nn.conv2d_transpose(input, dcv1_f, output_shape=shape1,
-                                                  strides=[1, 2, 2, 1], padding='VALID')
+                    dcv1_f = tf.get_variable("weights_dcv1_f", shape=[3, 3, dim2, cell_dim],
+                                             initializer=tf.random_uniform_initializer(-0.01, 0.01))
+                    dcv1_b = tf.get_variable("weights_dcv1_b", shape=[dim2],
+                                             initializer=tf.constant_initializer(bias_start))
+                    dcv1 = tf.nn.relu(tf.nn.conv2d_transpose(input, dcv1_f, output_shape=shape1,
+                                                             strides=[1, 2, 2, 1], padding='VALID') + dcv1_b)
 
                     shape2 = [batch_size, 31, 31, dim1]
-                    dcv2_f = tf.get_variable("dcv2_f", shape=[3, 3, dim1, dim2],
-                                            initializer=tf.random_uniform_initializer(-0.01, 0.01))
-                    dcv2 = tf.nn.conv2d_transpose(dcv1, dcv2_f, output_shape=shape2,
-                                                  strides=[1, 2, 2, 1], padding='VALID')
+                    dcv2_f = tf.get_variable("weights_dcv2_f", shape=[3, 3, dim1, dim2],
+                                             initializer=tf.random_uniform_initializer(-0.01, 0.01))
+                    dcv2_b = tf.get_variable("weights_dcv2_b", shape=[dim1],
+                                             initializer=tf.constant_initializer(bias_start))
+                    dcv2 = tf.nn.relu(tf.nn.conv2d_transpose(dcv1, dcv2_f, output_shape=shape2,
+                                                             strides=[1, 2, 2, 1], padding='VALID') + dcv2_b)
 
                     shape3 = [batch_size, 64, 64, 1]
-                    dcv3_f = tf.get_variable("dcv3_f", shape=[3, 3, 1, dim1],
-                                            initializer=tf.random_uniform_initializer(-0.01, 0.01))
-                    dcv3 = tf.nn.conv2d_transpose(dcv2, dcv3_f, output_shape=shape3,
-                                                  strides=[1, 2, 2, 1], padding='VALID')
+                    dcv3_f = tf.get_variable("weights_dcv3_f", shape=[3, 3, 1, dim1],
+                                             initializer=tf.random_uniform_initializer(-0.01, 0.01))
+                    dcv3_b = tf.get_variable("weights_dcv3_b", shape=[1],
+                                             initializer=tf.constant_initializer(bias_start))
+                    dcv3 = tf.nn.relu(tf.nn.conv2d_transpose(dcv2, dcv3_f, output_shape=shape3,
+                                                             strides=[1, 2, 2, 1], padding='VALID') + dcv3_b)
 
                 return dcv3
 
@@ -189,7 +202,7 @@ class pred_model:
 
 if __name__ == '__main__':
     opts = mm_data.BouncingMNISTDataHandler.options()
-    opts.batch_size = 40  # 80
+    opts.batch_size = 10  # 80
     opts.image_size = 64
     opts.num_digits = 2
     opts.num_frames = 20##first half is for input, latter is ground-truth
@@ -197,7 +210,7 @@ if __name__ == '__main__':
     moving_mnist = mm_data.BouncingMNISTDataHandler(opts)
     batch_generator = moving_mnist.GetBatchThread()
 
-    net = pred_model()
+    net = pred_model(batch_size=opts.batch_size)
 
     sess_config = tf.ConfigProto()
     sess_config.gpu_options.allow_growth = True
