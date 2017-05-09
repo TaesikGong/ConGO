@@ -108,10 +108,10 @@ class pred_model:
 
 
             #TODO: multi cell
-
+            #copy c_states
             repr = enc_cell.zero_state(s[0], tf.float32)
             repr = (
-                tf.contrib.rnn.LSTMStateTuple(enc_s[0][0], repr[0][1]),
+                tf.contrib.rnn.LSTMStateTuple(enc_s[0][0], repr[0][1]),#[cell][c/h]
                 tf.contrib.rnn.LSTMStateTuple(enc_s[1][0], repr[1][1]))
 
             #TODO: single cell
@@ -121,12 +121,21 @@ class pred_model:
 
             print('future prediction...')
 
-            fut_dummy = tf.zeros_like(enc_o)
+            fut_dummy = tf.zeros_like(enc_o) # need to be changed "if we use conditioned"
+            #fut_dummy[:,0] = tf.zeros_like(batch,64,64,1)
+            #fut_dummy[:,1-9] = fut_frames[:, 1-9, :, :, :]
+            #fut_dummy = tf.zeros_like(enc_o)
             #TODO: output_dim = None!
             fut_o, fut_s = rnn.custom_dynamic_rnn(fut_cell, fut_dummy,
                                                   output_operation=conv_to_output, output_conditioned=False,
                                                   output_dim=None, output_activation=tf.identity,
                                                   initial_state=repr, name='dec_rnn', scope='dec_cell')
+
+            # if conditioned architecture added
+            # fut_o_test, fut_s_test = rnn.custom_dynamic_rnn(fut_cell, fut_dummy,
+            #                                       output_operation=conv_to_output, output_conditioned=True,
+            #                                       output_dim=None, output_activation=tf.identity, recurrent_activation=tf.sigmoid,d
+            #                                       initial_state=repr, name='dec_rnn', scope='dec_cell')
 
             # future ground-truth (0 or 1)
             fut_logit = tf.greater(fut_norm, 0.)
