@@ -20,6 +20,7 @@ class pred_model:
             self.weight_decay = tf.Variable(1e-4, dtype=tf.float32, trainable=False, name='weight_decay')
             self.learning_rate = tf.Variable(1e-4, dtype=tf.float32, trainable=False, name='learning_rate')
             # self.learning_rate = tf.Variable(1e-2, dtype=tf.float32, trainable=False, name='learning_rate')
+            self.test_case = tf.placeholder(tf.bool)
 
             # data refinement
             s = tf.shape(self.input_frames)
@@ -126,16 +127,25 @@ class pred_model:
             #fut_dummy[:,1-9] = fut_frames[:, 1-9, :, :, :]
             #fut_dummy = tf.zeros_like(enc_o)
             #TODO: output_dim = None!
-            fut_o, fut_s = rnn.custom_dynamic_rnn(fut_cell, fut_dummy,
-                                                  output_operation=conv_to_output, output_conditioned=False,
-                                                  output_dim=None, output_activation=tf.identity,
-                                                  initial_state=repr, name='dec_rnn', scope='dec_cell')
 
-            # if conditioned architecture added
-            # fut_o_test, fut_s_test = rnn.custom_dynamic_rnn(fut_cell, fut_dummy,
-            #                                       output_operation=conv_to_output, output_conditioned=True,
-            #                                       output_dim=None, output_activation=tf.identity, recurrent_activation=tf.sigmoid,d
-            #                                       initial_state=repr, name='dec_rnn', scope='dec_cell')
+            # train
+            def train():
+                print("train!")
+                fut_o, fut_s = rnn.custom_dynamic_rnn(fut_cell, fut_dummy, input_operation=conv_to_input,
+                                                      output_operation=conv_to_output, output_conditioned=False,
+                                                      output_dim=None, output_activation=tf.identity,
+                                                      initial_state=repr, name='dec_rnn', scope='dec_cell')
+                return fut_o, fut_s
+            # test
+            def test():
+                print("test!")
+                fut_o_test, fut_s_test = rnn.custom_dynamic_rnn(fut_cell, fut_dummy,
+                                                  output_operation=conv_to_output, output_conditioned=True,
+                                                  output_dim=None, output_activation=tf.identity, recurrent_activation=tf.sigmoid,
+                                                  initial_state=repr, name='dec_rnn', scope='dec_cell')
+                return fut_o_test, fut_s_test
+
+            fut_o, fut_s = tf.cond(self.test_case, test, train)
 
             # future ground-truth (0 or 1)
             fut_logit = tf.greater(fut_norm, 0.)
@@ -233,13 +243,15 @@ if __name__ == '__main__':
 
             _, fut_loss = sess.run([net.optimizer, net.fut_loss],
                                    feed_dict={net.input_frames: inp_vid,
-                                              net.fut_frames: fut_vid})
+                                              net.fut_frames: fut_vid,
+                                              net.test_case: False})
 
             print ("[step %d] loss: %f" % (step, fut_loss))
 
             if step % 40 == 0:
                 o_vid = sess.run(net.fut_output, feed_dict={net.input_frames: inp_vid,
-                                                            net.fut_frames: fut_vid})
+                                                            net.fut_frames: fut_vid,
+                                                            net.test_case: True})
 
                 o_vid = o_vid[0].reshape([opts.num_frames // 2, opts.image_size, opts.image_size])
                 output_vid = np.concatenate(

@@ -34,6 +34,9 @@ def custom_dynamic_rnn(cell, inputs, output_dim=None, output_conditioned=False,
 
         if not output_conditioned:
             ground_conditioned = True
+        # if  output_conditioned is not True:
+        #     ground_conditioned = True
+
 
         if sequence_length is None:
             if (not output_conditioned) or ground_conditioned:
