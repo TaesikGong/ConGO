@@ -31,7 +31,7 @@ def custom_dynamic_rnn(cell, inputs, output_dim=None, output_conditioned=False,
 
     with tf.variable_scope(name or 'custom_rnn', reuse=reuse):
         inputs_shape = tf.shape(inputs)
-
+        ground_conditioned = None
         if not output_conditioned:
             ground_conditioned = True
         # if  output_conditioned is not True:
