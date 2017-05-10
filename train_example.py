@@ -3,7 +3,9 @@ import threading, cv2
 import numpy as np
 import util.rnn_ops as rnn
 import data.moving_mnist as mm_data
-
+import os
+import sys
+from datetime import datetime
 
 def vid_show_thread(output_vid):
     for i in range(output_vid.shape[0]):
@@ -109,6 +111,7 @@ if __name__ == '__main__':
     opts.num_digits = 2
     opts.num_frames = 20
     opts.step_length = 0.1
+    min_loss = -np.inf
     moving_mnist = mm_data.BouncingMNISTDataHandler(opts)
     batch_generator = moving_mnist.GetBatchThread()
 
@@ -116,8 +119,18 @@ if __name__ == '__main__':
 
     sess_config = tf.ConfigProto()
     sess_config.gpu_options.allow_growth = True
+
+    saver = tf.train.Saver()
+    dir_name = "weights"
+    if not os.path.exists(dir_name):
+        os.makedirs(dir_name) # make directory if not exists
+
     with tf.Session(config=sess_config) as sess:
-        tf.global_variables_initializer().run()
+        if len(sys.argv) > 1 and sys.argv[1]:
+            saver.restore(sess, sys.argv[1])
+        else:
+            tf.global_variables_initializer().run()
+
         for step in range(100000):
             x_batch = batch_generator.next()
             inp_vid, fut_vid = np.split(x_batch, 2, axis=1)
@@ -129,6 +142,13 @@ if __name__ == '__main__':
                                               net.fut_frames: fut_vid})
 
             print ("[step %d] loss: %f" % (step, fut_loss))
+            if abs(fut_loss - min_loss) > 5: # THRESHOLD
+                saver.save(sess, dir_name+"/{}__step{}__loss{:f}".format(
+                    str(datetime.now()).replace(' ','_'),
+                    step,
+                    fut_loss
+                ))
+                min_loss = fut_loss
 
             if step % 40 == 0:
                 o_vid = sess.run(net.fut_output, feed_dict={net.input_frames: inp_vid,
