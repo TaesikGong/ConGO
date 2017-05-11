@@ -32,6 +32,7 @@ def custom_dynamic_rnn(cell, inputs, output_dim=None, output_conditioned=False,
     with tf.variable_scope(name or 'custom_rnn', reuse=reuse):
         inputs_shape = tf.shape(inputs)
         ground_conditioned = None
+        is_first = True
         if not output_conditioned:
             ground_conditioned = True
         # if  output_conditioned is not True:
@@ -39,7 +40,7 @@ def custom_dynamic_rnn(cell, inputs, output_dim=None, output_conditioned=False,
 
 
         if sequence_length is None:
-            if (not output_conditioned) or ground_conditioned:
+            if (not output_conditioned) or ground_conditioned or is_first:
                 sequence_length = inputs_shape[1]
 
         # parameter initialization
@@ -81,6 +82,7 @@ def custom_dynamic_rnn(cell, inputs, output_dim=None, output_conditioned=False,
 
             # if output_conditioned and (not ground_conditioned):
             #     input = recurrent_activation(output)
+                # print(input)
             if (not output_conditioned) or ground_conditioned:
                 input = inputs[:, tf.mod(time, sequence_length)]
 
