@@ -72,13 +72,15 @@ def custom_dynamic_rnn(cell, inputs, output_dim=None, output_conditioned=False,
             # else:
             #     output = tf.nn.conv2d(output, matrix, strides=[1, 1, 1, 1], padding='SAME')
 
+            if output_conditioned and (not ground_conditioned):
+                input = recurrent_activation(output)
 
             output = output_operation(output, name='output_operation')
             outputs_ta = outputs_ta.write(time, output)
             time = time + 1
 
-            if output_conditioned and (not ground_conditioned):
-                input = recurrent_activation(output)
+            # if output_conditioned and (not ground_conditioned):
+            #     input = recurrent_activation(output)
             if (not output_conditioned) or ground_conditioned:
                 input = inputs[:, tf.mod(time, sequence_length)]
 

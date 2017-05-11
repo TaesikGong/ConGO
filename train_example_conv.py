@@ -14,13 +14,14 @@ def vid_show_thread(output_vid):
 class pred_model:
     def __init__(self, batch_size=80):
         with tf.device('/gpu:0'):
+        ####with tf.device('/cpu:0'):
             self.input_frames = tf.placeholder(tf.float32, shape=[None, None, 64, 64, 1], name='input_frames')
             self.fut_frames = tf.placeholder(tf.float32, shape=[None, None, 64, 64, 1], name='future_frames')
             self.keep_prob = tf.Variable(1.0, dtype=tf.float32, trainable=False, name='keep_prob')
             self.weight_decay = tf.Variable(1e-4, dtype=tf.float32, trainable=False, name='weight_decay')
             self.learning_rate = tf.Variable(1e-4, dtype=tf.float32, trainable=False, name='learning_rate')
             # self.learning_rate = tf.Variable(1e-2, dtype=tf.float32, trainable=False, name='learning_rate')
-            self.test_case = tf.placeholder(tf.bool)
+            self.test_case = tf.placeholder(tf.bool, name='test_case')
 
             # data refinement
             s = tf.shape(self.input_frames)
@@ -122,30 +123,37 @@ class pred_model:
 
             print('future prediction...')
 
-            fut_dummy = tf.zeros_like(enc_o) # need to be changed "if we use conditioned"
+            #fut_dummy = tf.zeros_like(input_norm) # need to be changed "if we use conditioned"
             #fut_dummy[:,0] = tf.zeros_like(batch,64,64,1)
             #fut_dummy[:,1-9] = fut_frames[:, 1-9, :, :, :]
             #fut_dummy = tf.zeros_like(enc_o)
             #TODO: output_dim = None!
 
+            # fut_o, fut_s = rnn.custom_dynamic_rnn(fut_cell, fut_dummy, input_operation=conv_to_input,
+            #                                       output_operation=conv_to_output, output_conditioned=False,
+            #                                       output_dim=None, output_activation=tf.identity,
+            #                                       initial_state=repr, name='dec_rnn', scope='dec_cell')
+
             # train
             def train():
                 print("train!")
-                fut_o, fut_s = rnn.custom_dynamic_rnn(fut_cell, fut_dummy, input_operation=conv_to_input,
+                fut_dummy = tf.zeros_like(input_norm)
+                fut_out, fut_st = rnn.custom_dynamic_rnn(fut_cell, fut_dummy, input_operation=conv_to_input,
                                                       output_operation=conv_to_output, output_conditioned=False,
                                                       output_dim=None, output_activation=tf.identity,
                                                       initial_state=repr, name='dec_rnn', scope='dec_cell')
-                return fut_o, fut_s
+                return fut_out, fut_st
             # test
             def test():
                 print("test!")
-                fut_o_test, fut_s_test = rnn.custom_dynamic_rnn(fut_cell, fut_dummy,
+                fut_dummy = tf.zeros_like(enc_o)
+                fut_out, fut_st = rnn.custom_dynamic_rnn(fut_cell, fut_dummy,
                                                   output_operation=conv_to_output, output_conditioned=True,
                                                   output_dim=None, output_activation=tf.identity, recurrent_activation=tf.sigmoid,
                                                   initial_state=repr, name='dec_rnn', scope='dec_cell')
-                return fut_o_test, fut_s_test
+                return fut_out, fut_st
 
-            fut_o, fut_s = tf.cond(self.test_case, test, train)
+            fut_o, fut_s = tf.cond(self.test_case, test, train, name=None)
 
             # future ground-truth (0 or 1)
             fut_logit = tf.greater(fut_norm, 0.)
@@ -230,10 +238,12 @@ if __name__ == '__main__':
 
     net = pred_model(batch_size=opts.batch_size)
 
+    ####
     sess_config = tf.ConfigProto()
     sess_config.gpu_options.allow_growth = True
 
     with tf.Session(config=sess_config) as sess:
+    # with tf.Session() as sess:
         tf.global_variables_initializer().run()
         for step in range(100000):
             x_batch = batch_generator.next()
