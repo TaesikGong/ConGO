@@ -29,6 +29,7 @@ class BouncingMNISTDataHandler(object):
       f = h5py.File('data/mnist.h5')
     except:
       print 'Please set the correct path to MNIST dataset'
+      ###print('Please set the correct path to MNIST dataset')
       sys.exit()
 
     self.data_ = f['train'].value.reshape(-1, 28, 28)
@@ -68,12 +69,14 @@ class BouncingMNISTDataHandler(object):
     start_y = np.zeros((length, batch_size))
     start_x = np.zeros((length, batch_size))
     for i in xrange(length):
+    ###for i in range(length):
       # Take a step along velocity.
       y += v_y * self.step_length_
       x += v_x * self.step_length_
 
       # Bounce off edges.
       for j in xrange(batch_size):
+      ###for j in range(batch_size):
         if x[j] <= 0:
           x[j] = 0
           v_x[j] = -v_x[j]
@@ -122,8 +125,9 @@ class BouncingMNISTDataHandler(object):
     data = np.zeros((self.batch_size_, self.seq_length_, self.image_size_, self.image_size_), dtype=np.float32)
 
     for j in xrange(self.batch_size_):
+    ###for j in range(self.batch_size_):
       for n in xrange(self.num_digits_):
-
+      ###for n in range(self.num_digits_):
         # get random digit from dataset
         ind = self.indices_[self.row_]
         self.row_ += 1
@@ -134,6 +138,7 @@ class BouncingMNISTDataHandler(object):
 
         # generate video
         for i in xrange(self.seq_length_):
+        ###for i in range(self.seq_length_):
           top = start_y[i, j * self.num_digits_ + n]
           left = start_x[i, j * self.num_digits_ + n]
           bottom = top + self.digit_size_
