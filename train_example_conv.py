@@ -243,7 +243,7 @@ if __name__ == '__main__':
     sess_config.gpu_options.allow_growth = True
 
     with tf.Session(config=sess_config) as sess:
-    ####with tf.Session() as sess:
+    # with tf.Session() as sess:
         tf.global_variables_initializer().run()
         for step in range(100000):
             x_batch = batch_generator.next()
