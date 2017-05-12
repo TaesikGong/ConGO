@@ -208,7 +208,7 @@ if __name__ == '__main__':
     opts.num_digits = 2
     opts.num_frames = 20##first half is for input, latter is ground-truth
     opts.step_length = 0.1
-    min_loss = -np.inf
+    min_loss = np.inf
     moving_mnist = mm_data.BouncingMNISTDataHandler(opts)
     batch_generator = moving_mnist.GetBatchThread()
 
@@ -239,7 +239,7 @@ if __name__ == '__main__':
                                               net.fut_frames: fut_vid})
 
             print ("[step %d] loss: %f" % (step, fut_loss))
-            if abs(fut_loss - min_loss) > 5: # THRESHOLD
+            if fut_loss < min_loss - 5: # THRESHOLD
                 saver.save(sess, dir_name+"/{}__step{}__loss{:f}".format(
                     str(datetime.now()).replace(' ','_'),
                     step,
