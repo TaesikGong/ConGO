@@ -1,7 +1,16 @@
 # ConGO
 cs570_2017_spring_term project
 
-[mnist.h5](https://drive.google.com/open?id=0B3kZyL62Zw6vOUJVUE94R3FjVjQ)
+### 환경 설정
+- data 폴더에 [mnist.h5](https://drive.google.com/open?id=0B3kZyL62Zw6vOUJVUE94R3FjVjQ) 넣기
+- anaconda 설치 후
+```bash
+conda update conda
+conda create --name tensorflow
+source activate tensorflow
+conda install tensorflow h5py
+conda install --channel menpo opencv
+```
 
 ### save하기
 - train_example: weights 폴더에 저장됨

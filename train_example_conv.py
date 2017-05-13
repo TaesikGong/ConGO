@@ -6,6 +6,7 @@ import data.moving_mnist as mm_data
 import os
 import sys
 from datetime import datetime
+from discriminator import Discriminator
 
 def vid_show_thread(output_vid):
     for i in range(output_vid.shape[0]):
@@ -135,6 +136,7 @@ class pred_model:
 
             #fut_o
             # loss calculation
+            '''
             self.fut_loss = \
                 tf.nn.sigmoid_cross_entropy_with_logits(logits=fut_o,
                                                         labels=tf.cast(fut_logit, tf.float32))
@@ -142,16 +144,20 @@ class pred_model:
             ## fut_logit: ?,?,4096
 
             self.fut_loss = tf.reduce_mean(tf.reduce_sum(self.fut_loss, [2, 3, 4]))#?,?,4096 -> ?,?,64,64,1
-
-
-            # optimizer
-            print('optimization...')
-            self.optimizer = self.__adam_optimizer_op(
-                self.fut_loss + self.weight_decay * self.__calc_weight_l2_panalty())
+            '''
 
             # output future frames as uint8
             print('output future frames...')
             self.fut_output = tf.cast(tf.clip_by_value(tf.sigmoid(fut_o) * 255, 0, 255), tf.uint8)
+
+            # DISCRIMINATOR
+            # fut_o.shape: batch_size/# of output frame(10)/64/64/1
+            self.D = Discriminator(2048, fut_o, self.fut_frames)
+
+            # optimizer
+            print('optimization...')
+            self.fut_loss = self.D.loss_G
+            self.optimizer = self.__adam_optimizer_op(self.fut_loss)
 
     def __lstm_cell(self, cell_dim, num_multi_cells):
 
@@ -234,11 +240,13 @@ if __name__ == '__main__':
 
             inp_vid, fut_vid = np.expand_dims(inp_vid, -1), np.expand_dims(fut_vid, -1)
 
-            _, fut_loss = sess.run([net.optimizer, net.fut_loss],
+            _, fut_loss, loss_D, _ = sess.run([net.optimizer, net.fut_loss,
+                                               net.D.loss_D, net.D.train_D],
                                    feed_dict={net.input_frames: inp_vid,
                                               net.fut_frames: fut_vid})
 
             print ("[step %d] loss: %f" % (step, fut_loss))
+            print ("loss_D: ", loss_D)
             if abs(fut_loss - min_loss) > 5: # THRESHOLD
                 saver.save(sess, dir_name+"/{}__step{}__loss{:f}".format(
                     str(datetime.now()).replace(' ','_'),
