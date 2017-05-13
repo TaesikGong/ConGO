@@ -156,7 +156,8 @@ class pred_model:
 
             # optimizer
             print('optimization...')
-            self.fut_loss = self.D.loss_G
+            self.fut_loss = self.D.G_loss
+
             self.optimizer = self.__adam_optimizer_op(self.fut_loss)
 
     def __lstm_cell(self, cell_dim, num_multi_cells):
@@ -240,13 +241,13 @@ if __name__ == '__main__':
 
             inp_vid, fut_vid = np.expand_dims(inp_vid, -1), np.expand_dims(fut_vid, -1)
 
-            _, fut_loss, loss_D, _ = sess.run([net.optimizer, net.fut_loss,
-                                               net.D.loss_D, net.D.train_D],
+            _, fut_loss, D_loss, _ = sess.run([net.optimizer, net.fut_loss,
+                                               net.D.D_loss, net.D.D_solver],
                                    feed_dict={net.input_frames: inp_vid,
                                               net.fut_frames: fut_vid})
 
             print ("[step %d] loss: %f" % (step, fut_loss))
-            print ("loss_D: ", loss_D)
+            print ("D_loss: ", D_loss)
             if fut_loss < min_loss - 5: # THRESHOLD
                 saver.save(sess, dir_name+"/{}__step{}__loss{:f}".format(
                     str(datetime.now()).replace(' ','_'),
