@@ -25,7 +25,7 @@ class Discriminator:
         
         self.D_loss = self.D_loss_real + self.D_loss_fake
         self.G_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(
-                logits = self.D_logit_fake, labels=tf.ones_like(self.D_logit_fake)))
+                logits = self.D_logit_fake, labels = tf.ones_like(self.D_logit_fake)))
 
         theta_D = [self.D_W1, self.D_b1, self.D_W2, self.D_b2]
 
