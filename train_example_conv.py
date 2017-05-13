@@ -142,7 +142,8 @@ class pred_model:
                                                       output_operation=conv_to_output, output_conditioned=False,
                                                       output_dim=None, output_activation=tf.identity,
                                                       initial_state=repr, name='dec_rnn', scope='dec_cell')
-                return fut_out, fut_st
+                return tf.convert_to_tensor(fut_out), tf.convert_to_tensor(fut_st)
+
             # test
             def test():
                 print("test!")
@@ -151,7 +152,10 @@ class pred_model:
                                                   output_operation=conv_to_output, output_conditioned=True,
                                                   output_dim=None, output_activation=tf.identity, recurrent_activation=tf.sigmoid,
                                                   initial_state=repr, name='dec_rnn', scope='dec_cell')
-                return fut_out, fut_st
+
+                return tf.convert_to_tensor(fut_out), tf.convert_to_tensor(fut_st)
+
+
 
             fut_o, fut_s = tf.cond(self.test_case, test, train, name=None)
 
