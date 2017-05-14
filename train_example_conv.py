@@ -135,30 +135,22 @@ class pred_model:
             #                                       initial_state=repr, name='dec_rnn', scope='dec_cell')
 
             fut_dummy_tr = tf.zeros_like(input_norm)
-            fut_out, fut_st = rnn.custom_dynamic_rnn(fut_cell, fut_dummy_tr, input_operation=conv_to_input,
+            fut_out_tr, fut_st_tr = rnn.custom_dynamic_rnn(fut_cell, fut_dummy_tr, input_operation=conv_to_input,
                                                      output_operation=conv_to_output, output_conditioned=False,
                                                      output_dim=None, output_activation=tf.identity,
                                                      initial_state=repr, name='dec_rnn', scope='dec_cell')
 
             fut_dummy_te = tf.zeros_like(enc_o)
-            fut_out, fut_st = rnn.custom_dynamic_rnn(fut_cell, fut_dummy_te,
+            fut_out_te, fut_st_te = rnn.custom_dynamic_rnn(fut_cell, fut_dummy_te,
                                                      output_operation=conv_to_output, output_conditioned=True,
                                                      output_dim=None, output_activation=tf.identity,
                                                      recurrent_activation=tf.sigmoid,
                                                      initial_state=repr, name='dec_rnn', scope='dec_cell', reuse=True)
-            # train
-            def train():
-                print("train!")
-                return tf.convert_to_tensor(fut_out), tf.convert_to_tensor(fut_st)
-
-            # test
-            def test():
-                print("test!")
-                return tf.convert_to_tensor(fut_out), tf.convert_to_tensor(fut_st)
 
 
-
-            fut_o, fut_s = tf.cond(self.test_case, test, train, name=None)
+            #print("tr: ", fut_out_, )
+            fut_o, fut_s = tf.cond(self.test_case, lambda: (tf.convert_to_tensor(fut_out_te), tf.convert_to_tensor(fut_st_te)), lambda: (tf.convert_to_tensor(fut_out_tr), tf.convert_to_tensor(fut_st_tr)), name=None)
+            print(fut_o, fut_s)
 
             # future ground-truth (0 or 1)
             fut_logit = tf.greater(fut_norm, 0.)
