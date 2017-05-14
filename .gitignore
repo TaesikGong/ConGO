@@ -1,3 +1,4 @@
 .idea/
 *.pyc
 *.h5
+data/moving_mnist.py

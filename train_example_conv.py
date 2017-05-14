@@ -134,25 +134,26 @@ class pred_model:
             #                                       output_dim=None, output_activation=tf.identity,
             #                                       initial_state=repr, name='dec_rnn', scope='dec_cell')
 
+            fut_dummy_tr = tf.zeros_like(input_norm)
+            fut_out, fut_st = rnn.custom_dynamic_rnn(fut_cell, fut_dummy_tr, input_operation=conv_to_input,
+                                                     output_operation=conv_to_output, output_conditioned=False,
+                                                     output_dim=None, output_activation=tf.identity,
+                                                     initial_state=repr, name='dec_rnn', scope='dec_cell')
+
+            fut_dummy_te = tf.zeros_like(enc_o)
+            fut_out, fut_st = rnn.custom_dynamic_rnn(fut_cell, fut_dummy_te,
+                                                     output_operation=conv_to_output, output_conditioned=True,
+                                                     output_dim=None, output_activation=tf.identity,
+                                                     recurrent_activation=tf.sigmoid,
+                                                     initial_state=repr, name='dec_rnn', scope='dec_cell', reuse=True)
             # train
             def train():
                 print("train!")
-                fut_dummy = tf.zeros_like(input_norm)
-                fut_out, fut_st = rnn.custom_dynamic_rnn(fut_cell, fut_dummy, input_operation=conv_to_input,
-                                                      output_operation=conv_to_output, output_conditioned=False,
-                                                      output_dim=None, output_activation=tf.identity,
-                                                      initial_state=repr, name='dec_rnn', scope='dec_cell')
                 return tf.convert_to_tensor(fut_out), tf.convert_to_tensor(fut_st)
 
             # test
             def test():
                 print("test!")
-                fut_dummy = tf.zeros_like(enc_o)
-                fut_out, fut_st = rnn.custom_dynamic_rnn(fut_cell, fut_dummy,
-                                                  output_operation=conv_to_output, output_conditioned=True,
-                                                  output_dim=None, output_activation=tf.identity, recurrent_activation=tf.sigmoid,
-                                                  initial_state=repr, name='dec_rnn', scope='dec_cell')
-
                 return tf.convert_to_tensor(fut_out), tf.convert_to_tensor(fut_st)
 
 
