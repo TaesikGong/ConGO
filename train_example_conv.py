@@ -252,6 +252,7 @@ if __name__ == '__main__':
         tf.global_variables_initializer().run()
         for step in range(100000):
             x_batch = batch_generator.next()
+            ###x_batch = next(batch_generator)
             inp_vid, fut_vid = np.split(x_batch, 2, axis=1)
 
             inp_vid, fut_vid = np.expand_dims(inp_vid, -1), np.expand_dims(fut_vid, -1)
