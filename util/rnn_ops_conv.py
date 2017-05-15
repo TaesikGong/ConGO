@@ -32,16 +32,17 @@ def custom_dynamic_rnn(cell, inputs, output_dim=None, output_conditioned=False,
     with tf.variable_scope(name or 'custom_rnn', reuse=reuse):
         inputs_shape = tf.shape(inputs)
         ground_conditioned = None
-        is_first = True
+        # is_first = True
         if not output_conditioned:
             ground_conditioned = True
         # if  output_conditioned is not True:
         #     ground_conditioned = True
 
-
         if sequence_length is None:
-            if (not output_conditioned) or ground_conditioned or is_first:
-                sequence_length = inputs_shape[1]
+            sequence_length = inputs_shape[1]
+        # if sequence_length is None:
+        #     if (not output_conditioned) or ground_conditioned:
+        #         sequence_length = inputs_shape[1]
 
         # parameter initialization
         time = tf.constant(0, dtype=tf.int32)
@@ -73,15 +74,15 @@ def custom_dynamic_rnn(cell, inputs, output_dim=None, output_conditioned=False,
             # else:
             #     output = tf.nn.conv2d(output, matrix, strides=[1, 1, 1, 1], padding='SAME')
 
-            if output_conditioned and (not ground_conditioned):
-                input = recurrent_activation(output)
+            # if output_conditioned and (not ground_conditioned):
+            #     input = recurrent_activation(output)
 
             output = output_operation(output, name='output_operation')
             outputs_ta = outputs_ta.write(time, output)
             time = time + 1
 
-            # if output_conditioned and (not ground_conditioned):
-            #     input = recurrent_activation(output)
+            if output_conditioned and (not ground_conditioned):
+                input = recurrent_activation(output)
                 # print(input)
             if (not output_conditioned) or ground_conditioned:
                 input = inputs[:, tf.mod(time, sequence_length)]

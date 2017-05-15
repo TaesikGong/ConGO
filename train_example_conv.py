@@ -140,8 +140,8 @@ class pred_model:
                                                      output_dim=None, output_activation=tf.identity,
                                                      initial_state=repr, name='dec_rnn', scope='dec_cell')
 
-            fut_dummy_te = tf.zeros_like(enc_o)
-            fut_out_te, fut_st_te = rnn.custom_dynamic_rnn(fut_cell, fut_dummy_te,
+            fut_dummy_te = tf.zeros_like(input_norm)
+            fut_out_te, fut_st_te = rnn.custom_dynamic_rnn(fut_cell, fut_dummy_te, input_operation=conv_to_input,
                                                      output_operation=conv_to_output, output_conditioned=True,
                                                      output_dim=None, output_activation=tf.identity,
                                                      recurrent_activation=tf.sigmoid,
@@ -150,7 +150,7 @@ class pred_model:
 
             #print("tr: ", fut_out_, )
             fut_o, fut_s = tf.cond(self.test_case, lambda: (tf.convert_to_tensor(fut_out_te), tf.convert_to_tensor(fut_st_te)), lambda: (tf.convert_to_tensor(fut_out_tr), tf.convert_to_tensor(fut_st_tr)), name=None)
-            print(fut_o, fut_s)
+            # print(fut_o, fut_s)
 
             # future ground-truth (0 or 1)
             fut_logit = tf.greater(fut_norm, 0.)
