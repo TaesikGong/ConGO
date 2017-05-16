@@ -13,8 +13,8 @@ def vid_show_thread(output_vid):
 #comment
 class pred_model:
     def __init__(self, batch_size=80):
-        ####with tf.device('/gpu:0'):
-        with tf.device('/cpu:0'):
+        with tf.device('/gpu:0'):
+        ####with tf.device('/cpu:0'):
             self.input_frames = tf.placeholder(tf.float32, shape=[None, None, 64, 64, 1], name='input_frames')
             self.fut_frames = tf.placeholder(tf.float32, shape=[None, None, 64, 64, 1], name='future_frames')
             self.keep_prob = tf.Variable(1.0, dtype=tf.float32, trainable=False, name='keep_prob')
@@ -120,22 +120,15 @@ class pred_model:
             #TODO: single cell
             # repr = enc_s
             ###TODO: reverse input_orm
-            '''
-            self.input_frames = tf.placeholder(tf.float32, shape=[None, None, 64, 64, 1], name='input_frames'
-            s = tf.shape(self.input_frames)
-
-            input_flatten = tf.reshape(self.input_frames, [s[0], s[1], 64, 64, 1])
-            fut_flatten = tf.reshape(self.fut_frames, [s[0], s[1], 64, 64, 1])
-
-            input_norm = input_flatten / 1
-
-            o_vid = o_vid[0].reshape([opts.num_frames // 2, 64, 64])
 
 
+            input_norm_reverse = input_norm
+            print("input_norm_reverse", input_norm_reverse)
+            input_norm_reverse = tf.reverse(input_norm_reverse, [1])
+            print("input_norm_reverse", input_norm_reverse)
+            input_norm_reverse = tf.reshape(input_norm_reverse, tf.shape(input_norm))
+            print("input_norm_reverse", input_norm_reverse)
 
-            input_norm_reverse = input_norm.reshape([]))
-            '''
-            
             repr_out, repr_st = rnn.custom_dynamic_rnn(repr_cell, input_norm_reverse, input_operation=conv_to_input,
                                                            output_operation=conv_to_output, output_conditioned=False,
                                                            output_dim=None, output_activation=tf.identity,
@@ -169,7 +162,7 @@ class pred_model:
             fut_out_tr, fut_st_tr = rnn.custom_dynamic_rnn(fut_cell, input_norm, input_operation=conv_to_input,
                                                      output_operation=conv_to_output, output_conditioned=False,
                                                      output_dim=None, output_activation=tf.identity,
-                                                     initial_state=repr, name='dec_rnn', scope='dec_cell')
+                                                     initial_state=repr, name='dec_rnn', scope='dec_cell', reuse=True)
 
             fut_dummy_te = tf.zeros_like(input_norm)
             fut_out_te, fut_st_te = rnn.custom_dynamic_rnn(fut_cell, fut_dummy_te, input_operation=conv_to_input,
@@ -268,15 +261,15 @@ if __name__ == '__main__':
     net = pred_model(batch_size=opts.batch_size)
 
     ####
-    ####sess_config = tf.ConfigProto()
-    ####sess_config.gpu_options.allow_growth = True
+    sess_config = tf.ConfigProto()
+    sess_config.gpu_options.allow_growth = True
 
-    ####with tf.Session(config=sess_config) as sess:
-    with tf.Session() as sess:
+    with tf.Session(config=sess_config) as sess:
+    ####with tf.Session() as sess:
         tf.global_variables_initializer().run()
         for step in range(100000):
-            ###x_batch = batch_generator.next()
-            x_batch = next(batch_generator)
+            x_batch = batch_generator.next()
+            ###x_batch = next(batch_generator)
             inp_vid, fut_vid = np.split(x_batch, 2, axis=1)
 
             inp_vid, fut_vid = np.expand_dims(inp_vid, -1), np.expand_dims(fut_vid, -1)
