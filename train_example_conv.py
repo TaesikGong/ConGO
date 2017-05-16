@@ -143,7 +143,7 @@ class pred_model:
             ## fut_o: ?,?,4096
             ## fut_logit: ?,?,4096
 
-            self.fut_loss_old = tf.reduce_mean(tf.reduce_sum(self.fut_loss_old, [2, 3, 4]))#?,?,4096 -> ?,?,64,64,1
+            self.fut_loss = tf.reduce_mean(tf.reduce_sum(self.fut_loss_old, [2, 3, 4]))#?,?,4096 -> ?,?,64,64,1
 
             # output future frames as uint8
             print('output future frames...')
@@ -151,13 +151,13 @@ class pred_model:
 
             # DISCRIMINATOR
             # fut_o.shape: batch_size/# of output frame(10)/64/64/1
+
             self.D = Discriminator(2048, fut_o, self.fut_frames)
 
             # optimizer
             print('optimization...')
-            self.fut_loss = self.D.G_loss
 
-            self.optimizer = self.__adam_optimizer_op(self.fut_loss)
+            self.optimizer = self.__adam_optimizer_op(self.fut_loss)  # must include cross-entropy!
 
     def __lstm_cell(self, cell_dim, num_multi_cells):
 
@@ -239,13 +239,12 @@ if __name__ == '__main__':
 
             inp_vid, fut_vid = np.expand_dims(inp_vid, -1), np.expand_dims(fut_vid, -1)
 
-            _, fut_loss_old, fut_loss, D_loss, _ = sess.run([net.optimizer, net.fut_loss_old, net.fut_loss,
-                                               net.D.D_loss, net.D.D_solver],
+            _, fut_loss, G_loss, D_loss, _, _ = sess.run([net.optimizer, net.fut_loss, net.D.G_loss,
+                                               net.D.D_loss, net.D.D_solver, net.D.G_solver],
                                    feed_dict={net.input_frames: inp_vid,
                                               net.fut_frames: fut_vid})
 
-            print ("[step %d] fut_loss_old: %f, fut_loss: %f, D_loss: %f" % 
-                    (step, fut_loss_old, fut_loss, D_loss))
+            print ("[step %d] fut_loss: %f, G_loss: %f, D_loss: %f" % (step, fut_loss, G_loss, D_loss))
 
             if step % 40 == 0:
                 o_vid = sess.run(net.fut_output, feed_dict={net.input_frames: inp_vid,
