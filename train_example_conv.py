@@ -13,8 +13,8 @@ def vid_show_thread(output_vid):
 #comment
 class pred_model:
     def __init__(self, batch_size=80):
-        with tf.device('/gpu:0'):
-        ####with tf.device('/cpu:0'):
+        ####with tf.device('/gpu:0'):
+        with tf.device('/cpu:0'):
             self.input_frames = tf.placeholder(tf.float32, shape=[None, None, 64, 64, 1], name='input_frames')
             self.fut_frames = tf.placeholder(tf.float32, shape=[None, None, 64, 64, 1], name='future_frames')
             self.keep_prob = tf.Variable(1.0, dtype=tf.float32, trainable=False, name='keep_prob')
@@ -46,6 +46,7 @@ class pred_model:
             bias_start = 0.0
             enc_cell = self.__lstm_cell(cell_dim, 2)  # expressive power: 2048
             fut_cell = self.__lstm_cell(cell_dim, 2)
+            repr_cell = self.__lstm_cell(cell_dim, 2)
 
 
             def conv_to_input(input, name):
@@ -118,7 +119,38 @@ class pred_model:
 
             #TODO: single cell
             # repr = enc_s
+            ###TODO: reverse input_orm
+            '''
+            self.input_frames = tf.placeholder(tf.float32, shape=[None, None, 64, 64, 1], name='input_frames'
+            s = tf.shape(self.input_frames)
 
+            input_flatten = tf.reshape(self.input_frames, [s[0], s[1], 64, 64, 1])
+            fut_flatten = tf.reshape(self.fut_frames, [s[0], s[1], 64, 64, 1])
+
+            input_norm = input_flatten / 1
+
+            o_vid = o_vid[0].reshape([opts.num_frames // 2, 64, 64])
+
+
+
+            input_norm_reverse = input_norm.reshape([]))
+            '''
+            
+            repr_out, repr_st = rnn.custom_dynamic_rnn(repr_cell, input_norm_reverse, input_operation=conv_to_input,
+                                                           output_operation=conv_to_output, output_conditioned=False,
+                                                           output_dim=None, output_activation=tf.identity,
+                                                           initial_state=repr, name='dec_rnn', scope='dec_cell')
+
+            # future ground-truth (0 or 1)
+            repr_logit = tf.greater(input_norm_reverse, 0.)
+
+            # loss calculation
+            self.repr_loss = \
+                tf.nn.sigmoid_cross_entropy_with_logits(logits=repr_out,
+                                                        labels=tf.cast(repr_logit, tf.float32))
+
+            self.repr_loss = tf.reduce_mean(tf.reduce_sum(self.repr_loss, [2, 3, 4]))  # ?,?,4096 -> ?,?,64,64,1
+######
             # future prediction
 
             print('future prediction...')
@@ -134,8 +166,7 @@ class pred_model:
             #                                       output_dim=None, output_activation=tf.identity,
             #                                       initial_state=repr, name='dec_rnn', scope='dec_cell')
 
-            fut_dummy_tr = tf.zeros_like(input_norm)
-            fut_out_tr, fut_st_tr = rnn.custom_dynamic_rnn(fut_cell, fut_dummy_tr, input_operation=conv_to_input,
+            fut_out_tr, fut_st_tr = rnn.custom_dynamic_rnn(fut_cell, input_norm, input_operation=conv_to_input,
                                                      output_operation=conv_to_output, output_conditioned=False,
                                                      output_dim=None, output_activation=tf.identity,
                                                      initial_state=repr, name='dec_rnn', scope='dec_cell')
@@ -169,7 +200,8 @@ class pred_model:
             # optimizer
             print('optimization...')
             self.optimizer = self.__adam_optimizer_op(
-                self.fut_loss + self.weight_decay * self.__calc_weight_l2_panalty())
+                #####??self.fut_loss + self.weight_decay * self.__calc_weight_l2_panalty())
+                self.fut_loss + self.repr_loss + self.weight_decay * self.__calc_weight_l2_panalty())
 
             # output future frames as uint8
             print('output future frames...')
@@ -236,15 +268,15 @@ if __name__ == '__main__':
     net = pred_model(batch_size=opts.batch_size)
 
     ####
-    sess_config = tf.ConfigProto()
-    sess_config.gpu_options.allow_growth = True
+    ####sess_config = tf.ConfigProto()
+    ####sess_config.gpu_options.allow_growth = True
 
-    with tf.Session(config=sess_config) as sess:
-    # with tf.Session() as sess:
+    ####with tf.Session(config=sess_config) as sess:
+    with tf.Session() as sess:
         tf.global_variables_initializer().run()
         for step in range(100000):
-            x_batch = batch_generator.next()
-            ###x_batch = next(batch_generator)
+            ###x_batch = batch_generator.next()
+            x_batch = next(batch_generator)
             inp_vid, fut_vid = np.split(x_batch, 2, axis=1)
 
             inp_vid, fut_vid = np.expand_dims(inp_vid, -1), np.expand_dims(fut_vid, -1)
