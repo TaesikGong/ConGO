@@ -256,4 +256,4 @@ if __name__ == '__main__':
                     (np.squeeze((x_batch * 255).astype(np.uint8))[0][0:opts.num_frames // 2], o_vid), axis=0)
                 threading.Thread(target=vid_show_thread, args=([output_vid])).start()
 
-
+#
