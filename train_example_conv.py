@@ -3,7 +3,9 @@ import threading, cv2
 import numpy as np
 import util.rnn_ops_conv as rnn
 import data.moving_mnist as mm_data
-
+import os
+import sys
+from datetime import datetime
 
 def vid_show_thread(output_vid):
     for i in range(output_vid.shape[0]):
@@ -13,8 +15,8 @@ def vid_show_thread(output_vid):
 #comment
 class pred_model:
     def __init__(self, batch_size=80):
-        with tf.device('/gpu:0'):
-        ####with tf.device('/cpu:0'):
+        ####with tf.device('/gpu:0'):
+        with tf.device('/cpu:0'):
             self.input_frames = tf.placeholder(tf.float32, shape=[None, None, 64, 64, 1], name='input_frames')
             self.fut_frames = tf.placeholder(tf.float32, shape=[None, None, 64, 64, 1], name='future_frames')
             self.keep_prob = tf.Variable(1.0, dtype=tf.float32, trainable=False, name='keep_prob')
@@ -256,18 +258,29 @@ if __name__ == '__main__':
     opts.num_digits = 2
     opts.num_frames = 20##first half is for input, latter is ground-truth
     opts.step_length = 0.1
+    min_loss = np.inf
     moving_mnist = mm_data.BouncingMNISTDataHandler(opts)
     batch_generator = moving_mnist.GetBatchThread()
 
     net = pred_model(batch_size=opts.batch_size)
 
     ####
-    sess_config = tf.ConfigProto()
-    sess_config.gpu_options.allow_growth = True
+    # sess_config = tf.ConfigProto()
+    # sess_config.gpu_options.allow_growth = True
 
-    with tf.Session(config=sess_config) as sess:
-    # with tf.Session() as sess:
+    saver = tf.train.Saver(max_to_keep=1)
+    dir_name = "weights_ccc"
+    if not os.path.exists(dir_name):
+        os.makedirs(dir_name) # make directory if not exists
+
+    # with tf.Session(config=sess_config) as sess:
+    with tf.Session() as sess:
         tf.global_variables_initializer().run()
+        if len(sys.argv) > 1 and sys.argv[1]:
+            saver.restore(sess, sys.argv[1])
+        else:
+            tf.global_variables_initializer().run()
+
         for step in range(100000):
             x_batch = batch_generator.next()
             ###x_batch = next(batch_generator)
@@ -281,6 +294,13 @@ if __name__ == '__main__':
                                               net.test_case: False})
 
             print ("[step %d] Train loss: %f" % (step, fut_loss_tr))
+            # if fut_loss_tr < min_loss - 5: # THRESHOLD
+            #     saver.save(sess, dir_name+"/{}__step{}__loss{:f}".format(
+            #         str(datetime.now()).replace(' ','_'),
+            #         step,
+            #         fut_loss_tr
+            #     ))
+            #     min_loss = fut_loss_tr
 
             if step % 40 == 0:
                 o_vid, fut_loss_te = sess.run([net.fut_output, net.fut_loss], feed_dict={net.input_frames: inp_vid,
@@ -288,6 +308,14 @@ if __name__ == '__main__':
                                                             net.test_case: True})
 
                 print ("[step %d] Test loss: %f" % (step, fut_loss_te))
+
+                if fut_loss_te < min_loss - 5:  # THRESHOLD
+                    saver.save(sess, dir_name + "/{}__step{}__loss{:f}".format(
+                        str(datetime.now()).replace(' ', '_'),
+                        step,
+                        fut_loss_te
+                    ))
+                    min_loss = fut_loss_te
 
                 o_vid = o_vid[0].reshape([opts.num_frames // 2, opts.image_size, opts.image_size])
                 output_vid = np.concatenate(
