@@ -13,8 +13,8 @@ def vid_show_thread(output_vid):
 #comment
 class pred_model:
     def __init__(self, batch_size=80):
-        with tf.device('/gpu:0'):
-        ####with tf.device('/cpu:0'):
+        ####with tf.device('/gpu:0'):
+        with tf.device('/cpu:0'):
             self.input_frames = tf.placeholder(tf.float32, shape=[None, None, 64, 64, 1], name='input_frames')
             self.fut_frames = tf.placeholder(tf.float32, shape=[None, None, 64, 64, 1], name='future_frames')
             self.keep_prob = tf.Variable(1.0, dtype=tf.float32, trainable=False, name='keep_prob')
@@ -236,11 +236,11 @@ if __name__ == '__main__':
     net = pred_model(batch_size=opts.batch_size)
 
     ####
-    sess_config = tf.ConfigProto()
-    sess_config.gpu_options.allow_growth = True
-
-    with tf.Session(config=sess_config) as sess:
-    # with tf.Session() as sess:
+    # sess_config = tf.ConfigProto()
+    # sess_config.gpu_options.allow_growth = True
+    #
+    # with tf.Session(config=sess_config) as sess:
+    with tf.Session() as sess:
         tf.global_variables_initializer().run()
         for step in range(100000):
             x_batch = batch_generator.next()
@@ -249,17 +249,19 @@ if __name__ == '__main__':
 
             inp_vid, fut_vid = np.expand_dims(inp_vid, -1), np.expand_dims(fut_vid, -1)
 
-            _, fut_loss = sess.run([net.optimizer, net.fut_loss],
+            _, fut_loss_tr = sess.run([net.optimizer, net.fut_loss],
                                    feed_dict={net.input_frames: inp_vid,
                                               net.fut_frames: fut_vid,
                                               net.test_case: False})
 
-            print ("[step %d] loss: %f" % (step, fut_loss))
+            print ("[step %d] Train loss: %f" % (step, fut_loss_tr))
 
             if step % 40 == 0:
-                o_vid = sess.run(net.fut_output, feed_dict={net.input_frames: inp_vid,
+                o_vid, fut_loss_te = sess.run([net.fut_output, net.fut_loss], feed_dict={net.input_frames: inp_vid,
                                                             net.fut_frames: fut_vid,
                                                             net.test_case: True})
+
+                print ("[step %d] Test loss: %f" % (step, fut_loss_te))
 
                 o_vid = o_vid[0].reshape([opts.num_frames // 2, opts.image_size, opts.image_size])
                 output_vid = np.concatenate(
