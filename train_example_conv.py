@@ -134,8 +134,8 @@ class pred_model:
             #                                       output_dim=None, output_activation=tf.identity,
             #                                       initial_state=repr, name='dec_rnn', scope='dec_cell')
 
-            fut_dummy_tr = tf.zeros_like(input_norm)
-            fut_out_tr, fut_st_tr = rnn.custom_dynamic_rnn(fut_cell, fut_dummy_tr, input_operation=conv_to_input,
+            # fut_dummy_tr = tf.zeros_like(input_norm)
+            fut_out_tr, fut_st_tr = rnn.custom_dynamic_rnn(fut_cell, input_norm, input_operation=conv_to_input,
                                                      output_operation=conv_to_output, output_conditioned=False,
                                                      output_dim=None, output_activation=tf.identity,
                                                      initial_state=repr, name='dec_rnn', scope='dec_cell')
