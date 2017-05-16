@@ -120,7 +120,7 @@ if __name__ == '__main__':
     sess_config = tf.ConfigProto()
     sess_config.gpu_options.allow_growth = True
 
-    saver = tf.train.Saver()
+    saver = tf.train.Saver(max_to_keep=2)
     dir_name = "weights"
     if not os.path.exists(dir_name):
         os.makedirs(dir_name) # make directory if not exists
