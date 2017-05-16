@@ -124,7 +124,7 @@ class pred_model:
 
             input_norm_reverse = input_norm
             print("input_norm_reverse", input_norm_reverse)
-            input_norm_reverse = tf.reverse(input_norm_reverse, [1])
+            input_norm_reverse = tf.reverse(input_norm_reverse, [2])#2 or 1?
             print("input_norm_reverse", input_norm_reverse)
             input_norm_reverse = tf.reshape(input_norm_reverse, tf.shape(input_norm))
             print("input_norm_reverse", input_norm_reverse)
