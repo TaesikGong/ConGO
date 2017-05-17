@@ -227,7 +227,7 @@ if __name__ == '__main__':
         if len(sys.argv) > 1 and sys.argv[1]:
             import re
             restored_step = re.search('step(\d+)', sys.argv[1])
-            init_step = int(restored_step.group(1))
+            init_step = int(restored_step.group(1))#load previous steps
             saver.restore(sess, sys.argv[1])
 
         else:
