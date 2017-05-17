@@ -15,8 +15,8 @@ def vid_show_thread(output_vid):
 #comment
 class pred_model:
     def __init__(self, batch_size=80):
-        ####with tf.device('/gpu:0'):
-        with tf.device('/cpu:0'):
+        with tf.device('/gpu:0'):
+        ###with tf.device('/cpu:0'):
             self.input_frames = tf.placeholder(tf.float32, shape=[None, None, 64, 64, 1], name='input_frames')
             self.fut_frames = tf.placeholder(tf.float32, shape=[None, None, 64, 64, 1], name='future_frames')
             self.keep_prob = tf.Variable(1.0, dtype=tf.float32, trainable=False, name='keep_prob')
@@ -174,6 +174,24 @@ class pred_model:
                                                      recurrent_activation=tf.sigmoid,
                                                      initial_state=repr, name='dec_rnn', scope='dec_cell', reuse=True)
 
+            def l1_loss(tensor, weight=1.0, scope=None):
+                """Define a L1Loss, useful for regularize, i.e. lasso.
+
+                Args:
+                  tensor: tensor to regularize.
+                  weight: scale the loss by this factor.
+                  scope: Optional scope for op_scope.
+
+                Returns:
+                """
+                with tf.name_scope(scope, 'L1Loss', [tensor]):
+                #with tf.op_scope([tensor], scope, 'L1Loss'): #WARNING:tensorflow:tf.op_scope(values, name, default_name) is deprecated, use tf.name_scope(name, default_name, values)
+                    weight = tf.convert_to_tensor(weight,
+                                                  dtype=tensor.dtype.base_dtype,
+                                                  name='loss_weight')
+                    loss = tf.multiply(weight, tf.reduce_sum(tf.abs(tensor)), name = 'value')
+                    #tf.add_to_collection(LOSSES_COLLECTION, loss)
+                    return loss
 
             #print("tr: ", fut_out_, )
             fut_o, fut_s = tf.cond(self.test_case, lambda: (tf.convert_to_tensor(fut_out_te), tf.convert_to_tensor(fut_st_te)), lambda: (tf.convert_to_tensor(fut_out_tr), tf.convert_to_tensor(fut_st_tr)), name=None)
@@ -184,13 +202,17 @@ class pred_model:
 
             #fut_o
             # loss calculation
-            self.fut_loss = \
+            self.fut_loss_old = \
                 tf.nn.sigmoid_cross_entropy_with_logits(logits=fut_o,
                                                         labels=tf.cast(fut_logit, tf.float32))
+
+            self.fut_loss = \
+                l1_loss(tf.subtract(fut_o, fut_norm))
+
             ## fut_o: ?,?,4096
             ## fut_logit: ?,?,4096
 
-            self.fut_loss = tf.reduce_mean(tf.reduce_sum(self.fut_loss, [2, 3, 4]))#?,?,4096 -> ?,?,64,64,1
+            self.fut_loss_old = tf.reduce_mean(tf.reduce_sum(self.fut_loss_old, [2, 3, 4]))#?,?,4096 -> ?,?,64,64,1
 
 
             # optimizer
@@ -265,16 +287,16 @@ if __name__ == '__main__':
     net = pred_model(batch_size=opts.batch_size)
 
     ####
-    # sess_config = tf.ConfigProto()
-    # sess_config.gpu_options.allow_growth = True
+    sess_config = tf.ConfigProto()
+    sess_config.gpu_options.allow_growth = True
 
     saver = tf.train.Saver(max_to_keep=1)
-    dir_name = "weights_ccc"
+    dir_name = "weights_ccc_lossl1"
     if not os.path.exists(dir_name):
         os.makedirs(dir_name) # make directory if not exists
 
-    # with tf.Session(config=sess_config) as sess:
-    with tf.Session() as sess:
+    with tf.Session(config=sess_config) as sess:
+    ###with tf.Session() as sess:
         tf.global_variables_initializer().run()
         if len(sys.argv) > 1 and sys.argv[1]:
             saver.restore(sess, sys.argv[1])
@@ -306,7 +328,7 @@ if __name__ == '__main__':
                 o_vid, fut_loss_te = sess.run([net.fut_output, net.fut_loss], feed_dict={net.input_frames: inp_vid,
                                                             net.fut_frames: fut_vid,
                                                             net.test_case: True})
-
+                print("type of fut_loss_te:", type(fut_loss_te))
                 print ("[step %d] Test loss: %f" % (step, fut_loss_te))
 
                 if fut_loss_te < min_loss - 5:  # THRESHOLD
