@@ -10,6 +10,7 @@ conda create --name tensorflow
 source activate tensorflow
 conda install tensorflow h5py
 conda install --channel menpo opencv
+export LD_LIBRARY_PATH=/home/tsgong/anaconda2/lib/
 ```
 
 ### save하기
