@@ -290,20 +290,26 @@ if __name__ == '__main__':
     sess_config = tf.ConfigProto()
     sess_config.gpu_options.allow_growth = True
 
-    saver = tf.train.Saver(max_to_keep=1)
+
+    saver = tf.train.Saver(max_to_keep=2)
     dir_name = "weights_ccc_lossl1"
+
     if not os.path.exists(dir_name):
         os.makedirs(dir_name) # make directory if not exists
 
     with tf.Session(config=sess_config) as sess:
     ###with tf.Session() as sess:
-        tf.global_variables_initializer().run()
+        init_step = 0
         if len(sys.argv) > 1 and sys.argv[1]:
+            import re
+            restored_step = re.search('step(\d+)', sys.argv[1])
+            init_step = int(restored_step.group(1))#load previous steps
             saver.restore(sess, sys.argv[1])
+
         else:
             tf.global_variables_initializer().run()
 
-        for step in range(100000):
+        for step in range(init_step, 500000):
             x_batch = batch_generator.next()
             ###x_batch = next(batch_generator)
             inp_vid, fut_vid = np.split(x_batch, 2, axis=1)
