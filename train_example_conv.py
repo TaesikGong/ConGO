@@ -163,7 +163,7 @@ class pred_model:
                 tf.nn.sigmoid_cross_entropy_with_logits(logits=repr_out,
                                                         labels=tf.cast(repr_logit, tf.float32))
 
-            self.repr_loss_old = tf.reduce_mean(tf.reduce_sum(self.repr_loss, [2, 3, 4]))  # ?,?,4096 -> ?,?,64,64,1
+            self.repr_loss_old = tf.reduce_mean(tf.reduce_sum(self.repr_loss_old, [2, 3, 4]))  # ?,?,4096 -> ?,?,64,64,1
 
             # loss calculation(l1 loss)
             self.repr_loss = \
