@@ -10,7 +10,7 @@ cs570_2017_spring_term project
 - composite branch : condDec + composite decoder
 - GAN branch: composite + GAN
 
-## Wegiht save & load
+## Wegight save & load
 
 ### save하기
 - train_example: weights 폴더에 저장됨
