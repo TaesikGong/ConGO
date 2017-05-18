@@ -1,7 +1,16 @@
 # ConGO
 cs570_2017_spring_term project
 
-[mnist.h5](https://drive.google.com/open?id=0B3kZyL62Zw6vOUJVUE94R3FjVjQ)
+## Required
+[mnist.h5](https://drive.google.com/open?id=0B3kZyL62Zw6vOUJVUE94R3FjVjQ) (need to be installed & located at "data/")
+
+## Branches
+- master branch: (1)train_example: simple LSTM, (2) train_example_conv: Conv+deconv + convLSTM
+- condDec branch: master/train_example_conv + conditioned decoder
+- composite branch : condDec + composite decoder
+- GAN branch: composite + GAN
+
+## Wegiht save & load
 
 ### save하기
 - train_example: weights 폴더에 저장됨
