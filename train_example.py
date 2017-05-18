@@ -126,12 +126,16 @@ if __name__ == '__main__':
         os.makedirs(dir_name) # make directory if not exists
 
     with tf.Session(config=sess_config) as sess:
+        init_step = 0
         if len(sys.argv) > 1 and sys.argv[1]:
+            import re
+            restored_step = re.search('step(\d+)', sys.argv[1])
+            init_step = int(restored_step.group(1))
             saver.restore(sess, sys.argv[1])
         else:
             tf.global_variables_initializer().run()
 
-        for step in range(100000):
+        for step in xrange(init_step, 500000):
             x_batch = batch_generator.next()
             inp_vid, fut_vid = np.split(x_batch, 2, axis=1)
 
