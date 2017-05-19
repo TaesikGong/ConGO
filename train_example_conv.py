@@ -15,8 +15,8 @@ def vid_show_thread(output_vid):
 #comment
 class pred_model:
     def __init__(self, batch_size=80):
-        ####with tf.device('/gpu:0'):
-        with tf.device('/cpu:0'):
+        with tf.device('/gpu:0'):
+        ####with tf.device('/cpu:0'):
             self.input_frames = tf.placeholder(tf.float32, shape=[None, None, 64, 64, 1], name='input_frames')
             self.fut_frames = tf.placeholder(tf.float32, shape=[None, None, 64, 64, 1], name='future_frames')
             self.keep_prob = tf.Variable(1.0, dtype=tf.float32, trainable=False, name='keep_prob')
@@ -106,6 +106,25 @@ class pred_model:
 
                 return dcv3
 
+            def l1_loss(tensor, weight=1.0, scope=None):
+                """Define a L1Loss, useful for regularize, i.e. lasso.
+
+                Args:
+                  tensor: tensor to regularize.
+                  weight: scale the loss by this factor.
+                  scope: Optional scope for op_scope.
+
+                Returns:
+                """
+                with tf.name_scope(scope, 'L1Loss', [tensor]):
+                #with tf.op_scope([tensor], scope, 'L1Loss'): #WARNING:tensorflow:tf.op_scope(values, name, default_name) is deprecated, use tf.name_scope(name, default_name, values)
+                    weight = tf.convert_to_tensor(weight,
+                                                  dtype=tensor.dtype.base_dtype,
+                                                  name='loss_weight')
+                    loss = tf.multiply(weight, tf.reduce_sum(tf.abs(tensor)), name = 'value')
+                    #tf.add_to_collection(LOSSES_COLLECTION, loss)
+                    return loss
+
             # encode frames
             print('encode frames...')
             enc_o, enc_s = rnn.custom_dynamic_rnn(enc_cell, input_norm, input_operation=conv_to_input,
@@ -125,11 +144,11 @@ class pred_model:
 
 
             input_norm_reverse = input_norm
-            print("input_norm_reverse", input_norm_reverse)
+            # print("input_norm_reverse", input_norm_reverse)
             input_norm_reverse = tf.reverse(input_norm_reverse, [2])#2 or 1?
-            print("input_norm_reverse", input_norm_reverse)
+            # print("input_norm_reverse", input_norm_reverse)
             input_norm_reverse = tf.reshape(input_norm_reverse, tf.shape(input_norm))
-            print("input_norm_reverse", input_norm_reverse)
+            # print("input_norm_reverse", input_norm_reverse)
 
             repr_out, repr_st = rnn.custom_dynamic_rnn(repr_cell, input_norm_reverse, input_operation=conv_to_input,
                                                            output_operation=conv_to_output, output_conditioned=False,
@@ -146,9 +165,9 @@ class pred_model:
 
             self.repr_loss_old = tf.reduce_mean(tf.reduce_sum(self.repr_loss_old, [2, 3, 4]))  # ?,?,4096 -> ?,?,64,64,1
 
+            # loss calculation(l1 loss)
             self.repr_loss = \
                 tf.reduce_sum(tf.abs(tf.subtract(repr_out, input_norm_reverse)))
-
 ######
             # future prediction
 
@@ -178,6 +197,7 @@ class pred_model:
                                                      recurrent_activation=tf.sigmoid,
                                                      initial_state=repr, name='dec_rnn', scope='dec_cell', reuse=True)
 
+
             '''
             def l1_loss(tensor, weight=1.0, scope=None):
                 """Define a L1Loss, useful for regularize, i.e. lasso.
@@ -200,7 +220,6 @@ class pred_model:
 
                     return loss
             '''
-
             #print("tr: ", fut_out_, )
             fut_o, fut_s = tf.cond(self.test_case, lambda: (tf.convert_to_tensor(fut_out_te), tf.convert_to_tensor(fut_st_te)), lambda: (tf.convert_to_tensor(fut_out_tr), tf.convert_to_tensor(fut_st_tr)), name=None)
             # print(fut_o, fut_s)
@@ -209,7 +228,7 @@ class pred_model:
             fut_logit = tf.greater(fut_norm, 0.)
 
             #fut_o
-            # loss calculation
+            # loss calculation(cross entropy)
             self.fut_loss_old = \
                 tf.nn.sigmoid_cross_entropy_with_logits(logits=fut_o,
                                                         labels=tf.cast(fut_logit, tf.float32))
@@ -218,17 +237,17 @@ class pred_model:
             print("fut_norm: ", fut_norm)
             print("tf.subtract(fut_o, fut_norm): ", tf.subtract(fut_o, fut_norm))
 
-
+        # loss calculation(l1 loss)
             self.fut_loss = \
                 tf.reduce_sum(tf.abs(tf.subtract(fut_o, fut_norm)))
 
             print("fut_loss: ", self.fut_loss)
 
+
             ## fut_o: ?,?,4096
             ## fut_logit: ?,?,4096
 
-            self.fut_loss_old = tf.reduce_mean(tf.reduce_sum(self.fut_loss_old, [2, 3, 4]))#?,?,4096 -> ?,?,64,64,1
-
+            self.fut_loss_old = tf.reduce_mean(tf.reduce_sum(self.fut_loss_old, [2, 3, 4]))  # ?,?,4096 -> ?,?,64,64,1
 
             # optimizer
             print('optimization...')
@@ -302,8 +321,8 @@ if __name__ == '__main__':
     net = pred_model(batch_size=opts.batch_size)
 
     ####
-    ####sess_config = tf.ConfigProto()
-    ####sess_config.gpu_options.allow_growth = True
+    sess_config = tf.ConfigProto()
+    sess_config.gpu_options.allow_growth = True
 
 
     saver = tf.train.Saver(max_to_keep=2)
@@ -312,8 +331,9 @@ if __name__ == '__main__':
     if not os.path.exists(dir_name):
         os.makedirs(dir_name) # make directory if not exists
 
-    ####with tf.Session(config=sess_config) as sess:
-    with tf.Session() as sess:
+
+    with tf.Session(config=sess_config) as sess:
+    # with tf.Session() as sess:
         init_step = 0
         if len(sys.argv) > 1 and sys.argv[1]:
             import re
@@ -325,18 +345,19 @@ if __name__ == '__main__':
             tf.global_variables_initializer().run()
 
         for step in range(init_step, 500000):
-            ###x_batch = batch_generator.next()
-            x_batch = next(batch_generator)
+            x_batch = batch_generator.next()
+            ###x_batch = next(batch_generator)
             inp_vid, fut_vid = np.split(x_batch, 2, axis=1)
 
             inp_vid, fut_vid = np.expand_dims(inp_vid, -1), np.expand_dims(fut_vid, -1)
 
-            _, fut_loss_tr = sess.run([net.optimizer, net.fut_loss],
+            _, fut_loss_cross, fut_loss_tr = sess.run([net.optimizer, net.fut_loss_old, net.fut_loss],
                                    feed_dict={net.input_frames: inp_vid,
                                               net.fut_frames: fut_vid,
                                               net.test_case: False})
 
-            print ("[step %d] Train loss: %f" % (step, fut_loss_tr))
+            print ("[step %d] Train loss (ce): %f" % (step, fut_loss_cross))
+            print ("[step %d] Train loss (l1): %f" % (step, fut_loss_tr))
             # if fut_loss_tr < min_loss - 5: # THRESHOLD
             #     saver.save(sess, dir_name+"/{}__step{}__loss{:f}".format(
             #         str(datetime.now()).replace(' ','_'),
@@ -346,12 +367,15 @@ if __name__ == '__main__':
             #     min_loss = fut_loss_tr
 
             if step % 40 == 0:
-                o_vid, fut_loss_te = sess.run([net.fut_output, net.fut_loss], feed_dict={net.input_frames: inp_vid,
+                o_vid, fut_loss_cross, fut_loss_te = sess.run([net.fut_output, net.fut_loss_old, net.fut_loss], feed_dict={net.input_frames: inp_vid,
                                                             net.fut_frames: fut_vid,
                                                             net.test_case: True})
-                print("type of fut_loss_te:", type(fut_loss_te))
-                print("fut_loss_te", fut_loss_te)
-                print ("[step %d] Test loss: %f" % (step, fut_loss_te))
+
+
+                # print("type of fut_loss_te:", type(fut_loss_te))
+                print ("[step %d] Test loss (ce): %f" % (step, fut_loss_cross))
+                print ("[step %d] Test loss (l1): %f" % (step, fut_loss_te))
+
 
                 if fut_loss_te < min_loss - 5:  # THRESHOLD
                     saver.save(sess, dir_name + "/{}__step{}__loss{:f}".format(
