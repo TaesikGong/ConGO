@@ -15,8 +15,8 @@ def vid_show_thread(output_vid):
 #comment
 class pred_model:
     def __init__(self, batch_size=80):
-        with tf.device('/gpu:0'):
-        ###with tf.device('/cpu:0'):
+        ####with tf.device('/gpu:0'):
+        with tf.device('/cpu:0'):
             self.input_frames = tf.placeholder(tf.float32, shape=[None, None, 64, 64, 1], name='input_frames')
             self.fut_frames = tf.placeholder(tf.float32, shape=[None, None, 64, 64, 1], name='future_frames')
             self.keep_prob = tf.Variable(1.0, dtype=tf.float32, trainable=False, name='keep_prob')
@@ -140,11 +140,15 @@ class pred_model:
             repr_logit = tf.greater(input_norm_reverse, 0.)
 
             # loss calculation
-            self.repr_loss = \
+            self.repr_loss_old = \
                 tf.nn.sigmoid_cross_entropy_with_logits(logits=repr_out,
                                                         labels=tf.cast(repr_logit, tf.float32))
 
-            self.repr_loss = tf.reduce_mean(tf.reduce_sum(self.repr_loss, [2, 3, 4]))  # ?,?,4096 -> ?,?,64,64,1
+            self.repr_loss_old = tf.reduce_mean(tf.reduce_sum(self.repr_loss_old, [2, 3, 4]))  # ?,?,4096 -> ?,?,64,64,1
+
+            self.repr_loss = \
+                tf.reduce_sum(tf.abs(tf.subtract(repr_out, input_norm_reverse)))
+
 ######
             # future prediction
 
@@ -174,6 +178,7 @@ class pred_model:
                                                      recurrent_activation=tf.sigmoid,
                                                      initial_state=repr, name='dec_rnn', scope='dec_cell', reuse=True)
 
+            '''
             def l1_loss(tensor, weight=1.0, scope=None):
                 """Define a L1Loss, useful for regularize, i.e. lasso.
 
@@ -189,9 +194,12 @@ class pred_model:
                     weight = tf.convert_to_tensor(weight,
                                                   dtype=tensor.dtype.base_dtype,
                                                   name='loss_weight')
+                    print("weight: ", weight)
                     loss = tf.multiply(weight, tf.reduce_sum(tf.abs(tensor)), name = 'value')
                     #tf.add_to_collection(LOSSES_COLLECTION, loss)
+
                     return loss
+            '''
 
             #print("tr: ", fut_out_, )
             fut_o, fut_s = tf.cond(self.test_case, lambda: (tf.convert_to_tensor(fut_out_te), tf.convert_to_tensor(fut_st_te)), lambda: (tf.convert_to_tensor(fut_out_tr), tf.convert_to_tensor(fut_st_tr)), name=None)
@@ -206,8 +214,15 @@ class pred_model:
                 tf.nn.sigmoid_cross_entropy_with_logits(logits=fut_o,
                                                         labels=tf.cast(fut_logit, tf.float32))
 
+            print("fut_o: ", fut_o)
+            print("fut_norm: ", fut_norm)
+            print("tf.subtract(fut_o, fut_norm): ", tf.subtract(fut_o, fut_norm))
+
+
             self.fut_loss = \
-                l1_loss(tf.subtract(fut_o, fut_norm))
+                tf.reduce_sum(tf.abs(tf.subtract(fut_o, fut_norm)))
+
+            print("fut_loss: ", self.fut_loss)
 
             ## fut_o: ?,?,4096
             ## fut_logit: ?,?,4096
@@ -287,8 +302,8 @@ if __name__ == '__main__':
     net = pred_model(batch_size=opts.batch_size)
 
     ####
-    sess_config = tf.ConfigProto()
-    sess_config.gpu_options.allow_growth = True
+    ####sess_config = tf.ConfigProto()
+    ####sess_config.gpu_options.allow_growth = True
 
 
     saver = tf.train.Saver(max_to_keep=2)
@@ -297,8 +312,8 @@ if __name__ == '__main__':
     if not os.path.exists(dir_name):
         os.makedirs(dir_name) # make directory if not exists
 
-    with tf.Session(config=sess_config) as sess:
-    ###with tf.Session() as sess:
+    ####with tf.Session(config=sess_config) as sess:
+    with tf.Session() as sess:
         init_step = 0
         if len(sys.argv) > 1 and sys.argv[1]:
             import re
@@ -310,8 +325,8 @@ if __name__ == '__main__':
             tf.global_variables_initializer().run()
 
         for step in range(init_step, 500000):
-            x_batch = batch_generator.next()
-            ###x_batch = next(batch_generator)
+            ###x_batch = batch_generator.next()
+            x_batch = next(batch_generator)
             inp_vid, fut_vid = np.split(x_batch, 2, axis=1)
 
             inp_vid, fut_vid = np.expand_dims(inp_vid, -1), np.expand_dims(fut_vid, -1)
@@ -335,6 +350,7 @@ if __name__ == '__main__':
                                                             net.fut_frames: fut_vid,
                                                             net.test_case: True})
                 print("type of fut_loss_te:", type(fut_loss_te))
+                print("fut_loss_te", fut_loss_te)
                 print ("[step %d] Test loss: %f" % (step, fut_loss_te))
 
                 if fut_loss_te < min_loss - 5:  # THRESHOLD
