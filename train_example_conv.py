@@ -167,8 +167,9 @@ class pred_model:
 
             # loss calculation(l1 loss)
             self.repr_loss = \
-                tf.reduce_sum(tf.abs(tf.subtract(repr_out, input_norm_reverse)))
+                tf.reduce_mean(tf.reduce_sum(tf.abs(tf.subtract(repr_out, input_norm_reverse)), [2, 3, 4]))
 ######
+
             # future prediction
 
             print('future prediction...')
@@ -219,7 +220,7 @@ class pred_model:
 
         # loss calculation(l1 loss)
             self.fut_loss = \
-                tf.reduce_sum(tf.abs(tf.subtract(fut_o, fut_norm)))
+                tf.reduce_mean(tf.reduce_sum(tf.abs(tf.subtract(fut_o, fut_norm)), [2, 3, 4]))
 
             print("fut_loss: ", self.fut_loss)
 
