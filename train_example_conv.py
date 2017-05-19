@@ -335,8 +335,8 @@ if __name__ == '__main__':
                                               net.fut_frames: fut_vid,
                                               net.test_case: False})
 
-            print ("[step %d] Train loss (ce): %f" % (step, fut_loss_cross))
-            print ("[step %d] Train loss (l1): %f" % (step, fut_loss_tr))
+            print("[step %d] Test loss (ce): %f    /    [step %d] Test loss (l1): %f" % (step, fut_loss_cross, step, fut_loss_tr))
+
             # if fut_loss_tr < min_loss - 5: # THRESHOLD
             #     saver.save(sess, dir_name+"/{}__step{}__loss{:f}".format(
             #         str(datetime.now()).replace(' ','_'),
@@ -352,9 +352,7 @@ if __name__ == '__main__':
 
 
                 # print("type of fut_loss_te:", type(fut_loss_te))
-                print ("[step %d] Test loss (ce): %f" % (step, fut_loss_cross))
-                print ("[step %d] Test loss (l1): %f" % (step, fut_loss_te))
-
+                print("[step %d] Test loss (ce): %f    /    [step %d] Test loss (l1): %f" % (step, fut_loss_cross, step, fut_loss_te))
 
                 if fut_loss_te < min_loss - 5:  # THRESHOLD
                     saver.save(sess, dir_name + "/{}__step{}__loss{:f}".format(
