@@ -198,28 +198,6 @@ class pred_model:
                                                      initial_state=repr, name='dec_rnn', scope='dec_cell', reuse=True)
 
 
-            '''
-            def l1_loss(tensor, weight=1.0, scope=None):
-                """Define a L1Loss, useful for regularize, i.e. lasso.
-
-                Args:
-                  tensor: tensor to regularize.
-                  weight: scale the loss by this factor.
-                  scope: Optional scope for op_scope.
-
-                Returns:
-                """
-                with tf.name_scope(scope, 'L1Loss', [tensor]):
-                #with tf.op_scope([tensor], scope, 'L1Loss'): #WARNING:tensorflow:tf.op_scope(values, name, default_name) is deprecated, use tf.name_scope(name, default_name, values)
-                    weight = tf.convert_to_tensor(weight,
-                                                  dtype=tensor.dtype.base_dtype,
-                                                  name='loss_weight')
-                    print("weight: ", weight)
-                    loss = tf.multiply(weight, tf.reduce_sum(tf.abs(tensor)), name = 'value')
-                    #tf.add_to_collection(LOSSES_COLLECTION, loss)
-
-                    return loss
-            '''
             #print("tr: ", fut_out_, )
             fut_o, fut_s = tf.cond(self.test_case, lambda: (tf.convert_to_tensor(fut_out_te), tf.convert_to_tensor(fut_st_te)), lambda: (tf.convert_to_tensor(fut_out_tr), tf.convert_to_tensor(fut_st_tr)), name=None)
             # print(fut_o, fut_s)
@@ -232,6 +210,8 @@ class pred_model:
             self.fut_loss_old = \
                 tf.nn.sigmoid_cross_entropy_with_logits(logits=fut_o,
                                                         labels=tf.cast(fut_logit, tf.float32))
+
+            self.fut_loss_old = tf.reduce_mean(tf.reduce_sum(self.fut_loss_old, [2, 3, 4]))  # ?,?,4096 -> ?,?,64,64,1
 
             print("fut_o: ", fut_o)
             print("fut_norm: ", fut_norm)
@@ -247,7 +227,6 @@ class pred_model:
             ## fut_o: ?,?,4096
             ## fut_logit: ?,?,4096
 
-            self.fut_loss_old = tf.reduce_mean(tf.reduce_sum(self.fut_loss_old, [2, 3, 4]))  # ?,?,4096 -> ?,?,64,64,1
 
             # optimizer
             print('optimization...')
@@ -331,9 +310,8 @@ if __name__ == '__main__':
     if not os.path.exists(dir_name):
         os.makedirs(dir_name) # make directory if not exists
 
-
     with tf.Session(config=sess_config) as sess:
-    # with tf.Session() as sess:
+    ####with tf.Session() as sess:
         init_step = 0
         if len(sys.argv) > 1 and sys.argv[1]:
             import re
