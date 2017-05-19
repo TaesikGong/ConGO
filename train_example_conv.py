@@ -13,6 +13,9 @@ def vid_show_thread(output_vid):
         cv2.waitKey(100)
 
 #comment
+def l1_loss(a, b):
+    return tf.abs(tf.subtract(a, b))
+
 class pred_model:
     def __init__(self, batch_size=80):
         with tf.device('/gpu:0'):
@@ -22,17 +25,11 @@ class pred_model:
             self.keep_prob = tf.Variable(1.0, dtype=tf.float32, trainable=False, name='keep_prob')
             self.weight_decay = tf.Variable(1e-4, dtype=tf.float32, trainable=False, name='weight_decay')
             self.learning_rate = tf.Variable(1e-4, dtype=tf.float32, trainable=False, name='learning_rate')
-            # self.learning_rate = tf.Variable(1e-2, dtype=tf.float32, trainable=False, name='learning_rate')
             self.test_case = tf.placeholder(tf.bool, name='test_case')
 
             # data refinement
             s = tf.shape(self.input_frames)
 
-            #TODO:old
-            # input_flatten = tf.reshape(self.input_frames, [s[0], s[1], 64 * 64 * 1])
-            # fut_flatten = tf.reshape(self.fut_frames, [s[0], s[1], 64 * 64 * 1])
-
-            #TODO:conv
             input_flatten = tf.reshape(self.input_frames, [s[0], s[1], 64, 64, 1])
             fut_flatten = tf.reshape(self.fut_frames, [s[0], s[1], 64, 64, 1])
 
@@ -104,26 +101,7 @@ class pred_model:
                                              initializer=tf.constant_initializer(bias_start))
                     dcv3 = tf.nn.conv2d_transpose(dcv2, dcv3_f, output_shape=shape3, strides=[1, 2, 2, 1], padding='VALID') + dcv3_b
 
-                return dcv3
-
-            def l1_loss(tensor, weight=1.0, scope=None):
-                """Define a L1Loss, useful for regularize, i.e. lasso.
-
-                Args:
-                  tensor: tensor to regularize.
-                  weight: scale the loss by this factor.
-                  scope: Optional scope for op_scope.
-
-                Returns:
-                """
-                with tf.name_scope(scope, 'L1Loss', [tensor]):
-                #with tf.op_scope([tensor], scope, 'L1Loss'): #WARNING:tensorflow:tf.op_scope(values, name, default_name) is deprecated, use tf.name_scope(name, default_name, values)
-                    weight = tf.convert_to_tensor(weight,
-                                                  dtype=tensor.dtype.base_dtype,
-                                                  name='loss_weight')
-                    loss = tf.multiply(weight, tf.reduce_sum(tf.abs(tensor)), name = 'value')
-                    #tf.add_to_collection(LOSSES_COLLECTION, loss)
-                    return loss
+                    return dcv3
 
             # encode frames
             print('encode frames...')
@@ -138,17 +116,10 @@ class pred_model:
                 tf.contrib.rnn.LSTMStateTuple(enc_s[0][0], repr[0][1]),#[cell][c/h]
                 tf.contrib.rnn.LSTMStateTuple(enc_s[1][0], repr[1][1]))
 
-            #TODO: single cell
-            # repr = enc_s
-            ###TODO: reverse input_orm
-
 
             input_norm_reverse = input_norm
-            # print("input_norm_reverse", input_norm_reverse)
             input_norm_reverse = tf.reverse(input_norm_reverse, [2])#2 or 1?
-            # print("input_norm_reverse", input_norm_reverse)
             input_norm_reverse = tf.reshape(input_norm_reverse, tf.shape(input_norm))
-            # print("input_norm_reverse", input_norm_reverse)
 
             repr_out, repr_st = rnn.custom_dynamic_rnn(repr_cell, input_norm_reverse, input_operation=conv_to_input,
                                                            output_operation=conv_to_output, output_conditioned=False,
@@ -162,28 +133,14 @@ class pred_model:
             self.repr_loss_old = \
                 tf.nn.sigmoid_cross_entropy_with_logits(logits=repr_out,
                                                         labels=tf.cast(repr_logit, tf.float32))
-
             self.repr_loss_old = tf.reduce_mean(tf.reduce_sum(self.repr_loss_old, [2, 3, 4]))  # ?,?,4096 -> ?,?,64,64,1
 
-            # loss calculation(l1 loss)
-            self.repr_loss = tf.reduce_mean(tf.reduce_sum(tf.abs(tf.subtract(repr_out, input_norm_reverse)), [2, 3, 4]))
+            self.repr_loss = tf.reduce_mean(tf.reduce_sum(l1_loss(tf.sigmoid(repr_out), input_norm_reverse), [2, 3, 4]))
 ######
 
             # future prediction
 
             print('future prediction...')
-
-            #fut_dummy = tf.zeros_like(input_norm) # need to be changed "if we use conditioned"
-            #fut_dummy[:,0] = tf.zeros_like(batch,64,64,1)
-            #fut_dummy[:,1-9] = fut_frames[:, 1-9, :, :, :]
-            #fut_dummy = tf.zeros_like(enc_o)
-            #TODO: output_dim = None!
-
-            # fut_o, fut_s = rnn.custom_dynamic_rnn(fut_cell, fut_dummy, input_operation=conv_to_input,
-            #                                       output_operation=conv_to_output, output_conditioned=False,
-            #                                       output_dim=None, output_activation=tf.identity,
-            #                                       initial_state=repr, name='dec_rnn', scope='dec_cell')
-
 
             fut_out_tr, fut_st_tr = rnn.custom_dynamic_rnn(fut_cell, input_norm, input_operation=conv_to_input,
                                                      output_operation=conv_to_output, output_conditioned=False,
@@ -198,34 +155,18 @@ class pred_model:
                                                      initial_state=repr, name='dec_rnn', scope='dec_cell', reuse=True)
 
 
-            #print("tr: ", fut_out_, )
-            fut_o, fut_s = tf.cond(self.test_case, lambda: (tf.convert_to_tensor(fut_out_te), tf.convert_to_tensor(fut_st_te)), lambda: (tf.convert_to_tensor(fut_out_tr), tf.convert_to_tensor(fut_st_tr)), name=None)
-            # print(fut_o, fut_s)
+            fut_o, fut_s = tf.cond(self.test_case, lambda: (tf.convert_to_tensor(fut_out_te), tf.convert_to_tensor(fut_st_te)),
+                                   lambda: (tf.convert_to_tensor(fut_out_tr), tf.convert_to_tensor(fut_st_tr)), name=None)
 
             # future ground-truth (0 or 1)
             fut_logit = tf.greater(fut_norm, 0.)
 
-            #fut_o
-            # loss calculation(cross entropy)
             self.fut_loss_old = \
                 tf.nn.sigmoid_cross_entropy_with_logits(logits=fut_o,
                                                         labels=tf.cast(fut_logit, tf.float32))
-
             self.fut_loss_old = tf.reduce_mean(tf.reduce_sum(self.fut_loss_old, [2, 3, 4]))  # ?,?,4096 -> ?,?,64,64,1
 
-            print("fut_o: ", fut_o)
-            print("fut_norm: ", fut_norm)
-            print("tf.subtract(fut_o, fut_norm): ", tf.subtract(fut_norm, fut_o))
-
-        # loss calculation(l1 loss)
-            self.fut_loss = tf.reduce_mean(tf.reduce_sum(tf.abs(tf.subtract(fut_norm, fut_o)), [2, 3, 4]))
-
-            print("fut_loss: ", self.fut_loss)
-
-
-            ## fut_o: ?,?,4096
-            ## fut_logit: ?,?,4096
-
+            self.fut_loss = tf.reduce_mean(tf.reduce_sum(l1_loss(tf.sigmoid(fut_o), fut_norm), [2, 3, 4]))
 
             # optimizer
             print('optimization...')
