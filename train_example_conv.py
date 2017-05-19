@@ -179,18 +179,6 @@ class pred_model:
 
     def __lstm_cell(self, cell_dim, num_multi_cells):
 
-        #TODO:old
-        # cells = [tf.contrib.rnn.core_rnn_cell.LSTMCell(cell_dim, use_peepholes=True, forget_bias=0.,
-        #                                               initializer=tf.random_uniform_initializer(-0.01, 0.01))
-        #          for _ in range(num_multi_cells)]
-        #
-        # drop_cells = [tf.contrib.rnn.core_rnn_cell.DropoutWrapper(cell,
-        #                                                           input_keep_prob=self.keep_prob,
-        #                                                           output_keep_prob=self.keep_prob) for cell in cells]
-        # multi_cell = tf.contrib.rnn.core_rnn_cell.MultiRNNCell(drop_cells)
-        # return multi_cell
-
-        #TODO:multi cell
         cells = [rnn.ConvLSTMCell([None, 7, 7, cell_dim], [5, 5], use_peepholes=True, forget_bias=0.,
                                                        initializer=tf.random_uniform_initializer(-0.01, 0.01))
                  for _ in range(num_multi_cells)]
@@ -198,9 +186,6 @@ class pred_model:
         multi_cell = rnn.MultiRNNCell(cells)
         return multi_cell
 
-        # TODO:single cell
-        # cell = rnn.ConvLSTMCell([None, 7, 7, cell_dim], [3, 3], use_peepholes=True, forget_bias=0.,
-        #                           initializer=tf.random_uniform_initializer(-0.01, 0.01))
         return cell
 
     def __momentum_optimizer_op(self, cost):
@@ -276,13 +261,6 @@ if __name__ == '__main__':
 
             print ("[step %d] Train loss L1: %f, repr_loss L1: %f, CE: %f"
                    % (step, fut_loss_tr,  repr_loss_tr, fut_loss_cross))
-            # if fut_loss_tr < min_loss - 5: # THRESHOLD
-            #     saver.save(sess, dir_name+"/{}__step{}__loss{:f}".format(
-            #         str(datetime.now()).replace(' ','_'),
-            #         step,
-            #         fut_loss_tr
-            #     ))
-            #     min_loss = fut_loss_tr
 
             if step % 40 == 0:
                 o_vid, fut_loss_cross, fut_loss_te, repr_loss_te = sess.run([net.fut_output, net.fut_loss_old,
@@ -292,7 +270,6 @@ if __name__ == '__main__':
                                                             net.test_case: True})
 
 
-                # print("type of fut_loss_te:", type(fut_loss_te))
                 print ("[step %d] Test fut_loss L1: %f, repr_loss L1: %f, CE: %f"
                        % (step, fut_loss_te, repr_loss_te, fut_loss_cross))
 
