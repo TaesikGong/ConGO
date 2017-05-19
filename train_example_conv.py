@@ -167,7 +167,7 @@ class pred_model:
 
             # loss calculation(l1 loss)
             self.repr_loss = \
-                tf.reduce_mean(tf.reduce_sum(tf.abs(tf.subtract(repr_out, input_norm_reverse)), [2, 3, 4]))
+                -tf.reduce_mean(tf.reduce_sum(tf.abs(tf.subtract(repr_out, input_norm_reverse)), [2, 3, 4]))
 ######
 
             # future prediction
@@ -216,11 +216,11 @@ class pred_model:
 
             print("fut_o: ", fut_o)
             print("fut_norm: ", fut_norm)
-            print("tf.subtract(fut_o, fut_norm): ", tf.subtract(fut_o, fut_norm))
+            print("tf.subtract(fut_o, fut_norm): ", tf.subtract(fut_norm, fut_o))
 
         # loss calculation(l1 loss)
             self.fut_loss = \
-                tf.reduce_mean(tf.reduce_sum(tf.abs(tf.subtract(fut_o, fut_norm)), [2, 3, 4]))
+                -tf.reduce_mean(tf.reduce_sum(tf.abs(tf.subtract(fut_norm, fut_o)), [2, 3, 4]))
 
             print("fut_loss: ", self.fut_loss)
 
@@ -233,7 +233,7 @@ class pred_model:
             print('optimization...')
             self.optimizer = self.__adam_optimizer_op(
                 #####??self.fut_loss + self.weight_decay * self.__calc_weight_l2_panalty())
-                self.fut_loss + self.repr_loss + self.weight_decay * self.__calc_weight_l2_panalty())
+                 self.fut_loss + self.repr_loss + self.weight_decay * self.__calc_weight_l2_panalty())
 
             # output future frames as uint8
             print('output future frames...')
@@ -335,8 +335,7 @@ if __name__ == '__main__':
                                               net.fut_frames: fut_vid,
                                               net.test_case: False})
 
-            print("[step %d] Test loss (ce): %f    /    [step %d] Test loss (l1): %f" % (step, fut_loss_cross, step, fut_loss_tr))
-
+            print ("[step %d] Train loss L1: %f, CE: %f" % (step, fut_loss_tr, fut_loss_cross))
             # if fut_loss_tr < min_loss - 5: # THRESHOLD
             #     saver.save(sess, dir_name+"/{}__step{}__loss{:f}".format(
             #         str(datetime.now()).replace(' ','_'),
@@ -352,7 +351,7 @@ if __name__ == '__main__':
 
 
                 # print("type of fut_loss_te:", type(fut_loss_te))
-                print("[step %d] Test loss (ce): %f    /    [step %d] Test loss (l1): %f" % (step, fut_loss_cross, step, fut_loss_te))
+                print ("[step %d] Test loss L1: %f, CE: %f" % (step, fut_loss_te, fut_loss_cross))
 
                 if fut_loss_te < min_loss - 5:  # THRESHOLD
                     saver.save(sess, dir_name + "/{}__step{}__loss{:f}".format(
