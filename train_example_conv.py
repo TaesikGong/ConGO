@@ -166,8 +166,7 @@ class pred_model:
             self.repr_loss_old = tf.reduce_mean(tf.reduce_sum(self.repr_loss_old, [2, 3, 4]))  # ?,?,4096 -> ?,?,64,64,1
 
             # loss calculation(l1 loss)
-            self.repr_loss = \
-                -tf.reduce_mean(tf.reduce_sum(tf.abs(tf.subtract(repr_out, input_norm_reverse)), [2, 3, 4]))
+            self.repr_loss = tf.reduce_mean(tf.reduce_sum(tf.abs(tf.subtract(repr_out, input_norm_reverse)), [2, 3, 4]))
 ######
 
             # future prediction
@@ -219,8 +218,7 @@ class pred_model:
             print("tf.subtract(fut_o, fut_norm): ", tf.subtract(fut_norm, fut_o))
 
         # loss calculation(l1 loss)
-            self.fut_loss = \
-                -tf.reduce_mean(tf.reduce_sum(tf.abs(tf.subtract(fut_norm, fut_o)), [2, 3, 4]))
+            self.fut_loss = tf.reduce_mean(tf.reduce_sum(tf.abs(tf.subtract(fut_norm, fut_o)), [2, 3, 4]))
 
             print("fut_loss: ", self.fut_loss)
 
@@ -232,8 +230,7 @@ class pred_model:
             # optimizer
             print('optimization...')
             self.optimizer = self.__adam_optimizer_op(
-                #####??self.fut_loss + self.weight_decay * self.__calc_weight_l2_panalty())
-                 self.fut_loss + self.repr_loss + self.weight_decay * self.__calc_weight_l2_panalty())
+                (self.fut_loss + self.repr_loss) + self.weight_decay * self.__calc_weight_l2_panalty())
 
             # output future frames as uint8
             print('output future frames...')
@@ -330,12 +327,14 @@ if __name__ == '__main__':
 
             inp_vid, fut_vid = np.expand_dims(inp_vid, -1), np.expand_dims(fut_vid, -1)
 
-            _, fut_loss_cross, fut_loss_tr = sess.run([net.optimizer, net.fut_loss_old, net.fut_loss],
+            _, fut_loss_cross, fut_loss_tr, repr_loss_tr = sess.run([net.optimizer, net.fut_loss_old,
+                                                                     net.fut_loss, net.repr_loss],
                                    feed_dict={net.input_frames: inp_vid,
                                               net.fut_frames: fut_vid,
                                               net.test_case: False})
 
-            print ("[step %d] Train loss L1: %f, CE: %f" % (step, fut_loss_tr, fut_loss_cross))
+            print ("[step %d] Train loss L1: %f, repr_loss L1: %f, CE: %f"
+                   % (step, fut_loss_tr,  repr_loss_tr, fut_loss_cross))
             # if fut_loss_tr < min_loss - 5: # THRESHOLD
             #     saver.save(sess, dir_name+"/{}__step{}__loss{:f}".format(
             #         str(datetime.now()).replace(' ','_'),
@@ -345,13 +344,16 @@ if __name__ == '__main__':
             #     min_loss = fut_loss_tr
 
             if step % 40 == 0:
-                o_vid, fut_loss_cross, fut_loss_te = sess.run([net.fut_output, net.fut_loss_old, net.fut_loss], feed_dict={net.input_frames: inp_vid,
+                o_vid, fut_loss_cross, fut_loss_te, repr_loss_te = sess.run([net.fut_output, net.fut_loss_old,
+                                                                             net.fut_loss, net.repr_loss],
+                                                                            feed_dict={net.input_frames: inp_vid,
                                                             net.fut_frames: fut_vid,
                                                             net.test_case: True})
 
 
                 # print("type of fut_loss_te:", type(fut_loss_te))
-                print ("[step %d] Test loss L1: %f, CE: %f" % (step, fut_loss_te, fut_loss_cross))
+                print ("[step %d] Test fut_loss L1: %f, repr_loss L1: %f, CE: %f"
+                       % (step, fut_loss_te, repr_loss_te, fut_loss_cross))
 
                 if fut_loss_te < min_loss - 5:  # THRESHOLD
                     saver.save(sess, dir_name + "/{}__step{}__loss{:f}".format(
