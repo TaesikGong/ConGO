@@ -12,10 +12,6 @@ def vid_show_thread(output_vid):
         cv2.imshow('vid', output_vid[i])
         cv2.waitKey(100)
 
-#comment
-def l1_loss(a, b):
-    return tf.abs(tf.subtract(a, b))
-
 class pred_model:
     def __init__(self, batch_size=80):
         with tf.device('/gpu:0'):
@@ -130,12 +126,10 @@ class pred_model:
             repr_logit = tf.greater(input_norm_reverse, 0.)
 
             # loss calculation
-            self.repr_loss_old = \
+            self.repr_loss = \
                 tf.nn.sigmoid_cross_entropy_with_logits(logits=repr_out,
                                                         labels=tf.cast(repr_logit, tf.float32))
-            self.repr_loss_old = tf.reduce_mean(tf.reduce_sum(self.repr_loss_old, [2, 3, 4]))  # ?,?,4096 -> ?,?,64,64,1
-
-            self.repr_loss = tf.reduce_mean(tf.reduce_sum(l1_loss(tf.nn.relu(repr_out), input_norm_reverse), [2, 3, 4]))
+            self.repr_loss = tf.reduce_mean(tf.reduce_sum(self.repr_loss, [2, 3, 4]))  # ?,?,4096 -> ?,?,64,64,1
 ######
 
             # future prediction
@@ -161,12 +155,10 @@ class pred_model:
             # future ground-truth (0 or 1)
             fut_logit = tf.greater(fut_norm, 0.)
 
-            self.fut_loss_old = \
+            self.fut_loss = \
                 tf.nn.sigmoid_cross_entropy_with_logits(logits=fut_o,
                                                         labels=tf.cast(fut_logit, tf.float32))
-            self.fut_loss_old = tf.reduce_mean(tf.reduce_sum(self.fut_loss_old, [2, 3, 4]))  # ?,?,4096 -> ?,?,64,64,1
-
-            self.fut_loss = tf.reduce_mean(tf.reduce_sum(l1_loss(tf.nn.relu(fut_o), fut_norm), [2, 3, 4]))
+            self.fut_loss = tf.reduce_mean(tf.reduce_sum(self.fut_loss, [2, 3, 4]))  # ?,?,4096 -> ?,?,64,64,1
 
             # optimizer
             print('optimization...')
@@ -175,7 +167,7 @@ class pred_model:
 
             # output future frames as uint8
             print('output future frames...')
-            self.fut_output = tf.cast(tf.clip_by_value(tf.nn.relu(fut_o) * 255, 0, 255), tf.uint8)
+            self.fut_output = tf.cast(tf.clip_by_value(tf.sigmoid(fut_o) * 255, 0, 255), tf.uint8)
 
     def __lstm_cell(self, cell_dim, num_multi_cells):
 
@@ -229,7 +221,7 @@ if __name__ == '__main__':
 
 
     saver = tf.train.Saver(max_to_keep=2)
-    dir_name = "weights_ccc_lossl1"
+    dir_name = "weights_ccc"
 
     if not os.path.exists(dir_name):
         os.makedirs(dir_name) # make directory if not exists
@@ -253,33 +245,31 @@ if __name__ == '__main__':
 
             inp_vid, fut_vid = np.expand_dims(inp_vid, -1), np.expand_dims(fut_vid, -1)
 
-            _, fut_loss_cross, fut_loss_tr, repr_loss_tr = sess.run([net.optimizer, net.fut_loss_old,
-                                                                     net.fut_loss, net.repr_loss],
+            _, fut_loss_cross= sess.run([net.optimizer, net.fut_loss],
                                    feed_dict={net.input_frames: inp_vid,
                                               net.fut_frames: fut_vid,
                                               net.test_case: False})
 
-            print ("[step %d] Train loss L1: %f, repr_loss L1: %f, CE: %f"
-                   % (step, fut_loss_tr,  repr_loss_tr, fut_loss_cross))
+            print ("[step %d] Train loss CE: %f"
+                   % (step, fut_loss_cross))
 
             if step % 40 == 0:
-                o_vid, fut_loss_cross, fut_loss_te, repr_loss_te = sess.run([net.fut_output, net.fut_loss_old,
-                                                                             net.fut_loss, net.repr_loss],
+                o_vid, fut_loss_cross= sess.run([net.fut_output, net.fut_loss],
                                                                             feed_dict={net.input_frames: inp_vid,
                                                             net.fut_frames: fut_vid,
                                                             net.test_case: True})
 
 
-                print ("[step %d] Test fut_loss L1: %f, repr_loss L1: %f, CE: %f"
-                       % (step, fut_loss_te, repr_loss_te, fut_loss_cross))
+                print ("[step %d] Test CE: %f"
+                       % (step, fut_loss_cross))
 
-                if fut_loss_te < min_loss - 5:  # THRESHOLD
+                if fut_loss_cross < min_loss - 5:  # THRESHOLD
                     saver.save(sess, dir_name + "/{}__step{}__loss{:f}".format(
                         str(datetime.now()).replace(' ', '_'),
                         step,
-                        fut_loss_te
+                        fut_loss_cross
                     ))
-                    min_loss = fut_loss_te
+                    min_loss = fut_loss_cross
 
                 o_vid = o_vid[0].reshape([opts.num_frames // 2, opts.image_size, opts.image_size])
                 output_vid = np.concatenate(
