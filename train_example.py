@@ -111,7 +111,7 @@ if __name__ == '__main__':
     opts.num_digits = 2
     opts.num_frames = 20
     opts.step_length = 0.1
-    min_loss = -np.inf
+    min_loss = np.inf
     moving_mnist = mm_data.BouncingMNISTDataHandler(opts)
     batch_generator = moving_mnist.GetBatchThread()
 
@@ -120,7 +120,7 @@ if __name__ == '__main__':
     sess_config = tf.ConfigProto()
     sess_config.gpu_options.allow_growth = True
 
-    saver = tf.train.Saver()
+    saver = tf.train.Saver(max_to_keep=2)
     dir_name = "weights"
     if not os.path.exists(dir_name):
         os.makedirs(dir_name) # make directory if not exists
@@ -130,7 +130,7 @@ if __name__ == '__main__':
         if len(sys.argv) > 1 and sys.argv[1]:
             import re
             restored_step = re.search('step(\d+)', sys.argv[1])
-            init_step = int(restored_step.group(1))
+            init_step = int(restored_step.group(1))#load previous steps
             saver.restore(sess, sys.argv[1])
         else:
             tf.global_variables_initializer().run()
@@ -146,7 +146,7 @@ if __name__ == '__main__':
                                               net.fut_frames: fut_vid})
 
             print ("[step %d] loss: %f" % (step, fut_loss))
-            if abs(fut_loss - min_loss) > 5: # THRESHOLD
+            if fut_loss < min_loss - 5: # THRESHOLD
                 saver.save(sess, dir_name+"/{}__step{}__loss{:f}".format(
                     str(datetime.now()).replace(' ','_'),
                     step,
