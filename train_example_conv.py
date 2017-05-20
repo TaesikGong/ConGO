@@ -238,7 +238,7 @@ if __name__ == '__main__':
         else:
             tf.global_variables_initializer().run()
 
-        for step in range(init_step, 500000):
+        for step in xrange(init_step, 500000):
             x_batch = batch_generator.next()
             ###x_batch = next(batch_generator)
             inp_vid, fut_vid = np.split(x_batch, 2, axis=1)
