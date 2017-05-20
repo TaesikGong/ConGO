@@ -135,7 +135,7 @@ class pred_model:
                                                         labels=tf.cast(repr_logit, tf.float32))
             self.repr_loss_old = tf.reduce_mean(tf.reduce_sum(self.repr_loss_old, [2, 3, 4]))  # ?,?,4096 -> ?,?,64,64,1
 
-            self.repr_loss = tf.reduce_mean(tf.reduce_sum(l1_loss(tf.sigmoid(repr_out), input_norm_reverse), [2, 3, 4]))
+            self.repr_loss = tf.reduce_mean(tf.reduce_sum(l1_loss(tf.nn.relu(repr_out), input_norm_reverse), [2, 3, 4]))
 ######
 
             # future prediction
@@ -166,7 +166,7 @@ class pred_model:
                                                         labels=tf.cast(fut_logit, tf.float32))
             self.fut_loss_old = tf.reduce_mean(tf.reduce_sum(self.fut_loss_old, [2, 3, 4]))  # ?,?,4096 -> ?,?,64,64,1
 
-            self.fut_loss = tf.reduce_mean(tf.reduce_sum(l1_loss(tf.sigmoid(fut_o), fut_norm), [2, 3, 4]))
+            self.fut_loss = tf.reduce_mean(tf.reduce_sum(l1_loss(tf.nn.relu(fut_o), fut_norm), [2, 3, 4]))
 
             # optimizer
             print('optimization...')
@@ -175,7 +175,7 @@ class pred_model:
 
             # output future frames as uint8
             print('output future frames...')
-            self.fut_output = tf.cast(tf.clip_by_value(tf.sigmoid(fut_o) * 255, 0, 255), tf.uint8)
+            self.fut_output = tf.cast(tf.clip_by_value(tf.nn.relu(fut_o) * 255, 0, 255), tf.uint8)
 
     def __lstm_cell(self, cell_dim, num_multi_cells):
 
