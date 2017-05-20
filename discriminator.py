@@ -40,7 +40,11 @@ class Discriminator:
                       tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(
                           logits=self.D_logit_real, labels=tf.zeros_like(self.D_logit_real)))
 
-        theta_D = [self.D_W1, self.D_b1, self.D_W2, self.D_b2]
+        theta_D = [self.D_W1, self.D_b1, self.D_W2, self.D_b2,
+                   self.cv1_f, self.cv1_b, 
+                   self.cv2_f, self.cv2_b, 
+                   self.cv3_f, self.cv3_b,
+                   ]
 
         self.D_solver = tf.train.AdamOptimizer().minimize(self.D_loss, var_list=theta_D)
         self.G_solver = tf.train.AdamOptimizer().minimize(self.G_loss, var_list=g_vars)
@@ -57,22 +61,22 @@ class Discriminator:
         cell_dim = 256
         bias_start = 0.0
         with tf.variable_scope(name):
-            cv1_f = tf.get_variable("weights_cv1_f", shape=[3, 3, 1, dim1],
+            self.cv1_f = tf.get_variable("weights_cv1_f", shape=[3, 3, 1, dim1],
                                     initializer=tf.random_uniform_initializer(-0.01, 0.01))
-            cv1_b = tf.get_variable("weights_cv1_b", shape=[dim1],
+            self.cv1_b = tf.get_variable("weights_cv1_b", shape=[dim1],
                                     initializer=tf.constant_initializer(bias_start))
-            cv1 = tf.nn.relu(tf.nn.conv2d(input_, cv1_f, strides=[1, 2, 2, 1], padding='VALID') + cv1_b)
+            self.cv1 = tf.nn.relu(tf.nn.conv2d(input_, self.cv1_f, strides=[1, 2, 2, 1], padding='VALID') + self.cv1_b)
 
-            cv2_f = tf.get_variable("weights_cv2_f", shape=[3, 3, dim1, dim2],
+            self.cv2_f = tf.get_variable("weights_cv2_f", shape=[3, 3, dim1, dim2],
                                     initializer=tf.random_uniform_initializer(-0.01, 0.01))
-            cv2_b = tf.get_variable("weights_cv2_b", shape=[dim2],
+            self.cv2_b = tf.get_variable("weights_cv2_b", shape=[dim2],
                                     initializer=tf.constant_initializer(bias_start))
-            cv2 = tf.nn.relu(tf.nn.conv2d(cv1, cv2_f, strides=[1, 2, 2, 1], padding='VALID') + cv2_b)
+            self.cv2 = tf.nn.relu(tf.nn.conv2d(self.cv1, self.cv2_f, strides=[1, 2, 2, 1], padding='VALID') + self.cv2_b)
 
-            cv3_f = tf.get_variable("weights_cv3_f", shape=[3, 3, dim2, cell_dim],
+            self.cv3_f = tf.get_variable("weights_cv3_f", shape=[3, 3, dim2, cell_dim],
                                     initializer=tf.random_uniform_initializer(-0.01, 0.01))
-            cv3_b = tf.get_variable("weights_cv3_b", shape=[cell_dim],
+            self.cv3_b = tf.get_variable("weights_cv3_b", shape=[cell_dim],
                                     initializer=tf.constant_initializer(bias_start))
-            cv3 = tf.nn.relu(tf.nn.conv2d(cv2, cv3_f, strides=[1, 2, 2, 1], padding='VALID') + cv3_b)
+            self.cv3 = tf.nn.relu(tf.nn.conv2d(self.cv2, self.cv3_f, strides=[1, 2, 2, 1], padding='VALID') + self.cv3_b)
 
-            return cv3
+            return self.cv3
