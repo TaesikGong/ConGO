@@ -152,7 +152,7 @@ class pred_model:
             # DISCRIMINATOR
             # fut_o.shape: batch_size/# of output frame(10)/64/64/1
 
-            self.D = Discriminator(256, fut_o, self.fut_frames)
+            self.D = Discriminator(256, tf.sigmoid(fut_o), self.fut_frames)
 
             # optimizer
             print('optimization...')
