@@ -41,7 +41,7 @@ class pred_model:
             bias_start = 0.0
             enc_cell = self.__lstm_cell(cell_dim, 2)  # expressive power: 2048
             fut_cell = self.__lstm_cell(cell_dim, 2)
-            repr_cell = self.__lstm_cell(cell_dim, 2)
+            recon_cell = self.__lstm_cell(cell_dim, 2)
 
 
             def conv_to_input(input, name):
@@ -113,33 +113,42 @@ class pred_model:
                 tf.contrib.rnn.LSTMStateTuple(enc_s[1][0], repr[1][1]))
 
 
+            #TODO:shift right
+            dummy = tf.expand_dims(tf.zeros_like(input_norm[:, 0]), axis=1)#bx1xhxwxd
             input_norm_reverse = input_norm
-            input_norm_reverse = tf.reverse(input_norm_reverse, [2])#2 or 1?
-            input_norm_reverse = tf.reshape(input_norm_reverse, tf.shape(input_norm))
+            input_norm_reverse = tf.reverse(input_norm_reverse, [1])#2 or 1?
+            input_norm_shifted = tf.concat([dummy, input_norm_reverse], 1)
+            input_norm_shifted = input_norm_shifted[:, :-1]
 
-            repr_out, repr_st = rnn.custom_dynamic_rnn(repr_cell, input_norm_reverse, input_operation=conv_to_input,
+            #input_norm_reverse = tf.reshape(input_norm_reverse, tf.shape(input_norm))
+
+            recon_out, recon_st = rnn.custom_dynamic_rnn(recon_cell, input_norm_shifted, input_operation=conv_to_input,
                                                            output_operation=conv_to_output, output_conditioned=False,
                                                            output_dim=None, output_activation=tf.identity,
                                                            initial_state=repr, name='dec_rnn', scope='dec_cell')
 
             # future ground-truth (0 or 1)
-            repr_logit = tf.greater(input_norm_reverse, 0.)
+            recon_logit = tf.greater(input_norm_reverse, 0.)
 
             # loss calculation
-            self.repr_loss = \
-                tf.nn.sigmoid_cross_entropy_with_logits(logits=repr_out,
-                                                        labels=tf.cast(repr_logit, tf.float32))
-            self.repr_loss = tf.reduce_mean(tf.reduce_sum(self.repr_loss, [2, 3, 4]))  # ?,?,4096 -> ?,?,64,64,1
+            self.recon_loss = \
+                tf.nn.sigmoid_cross_entropy_with_logits(logits=recon_out,
+                                                        labels=tf.cast(recon_logit, tf.float32))
+            self.recon_loss = tf.reduce_mean(tf.reduce_sum(self.recon_loss, [2, 3, 4]))  # ?,?,4096 -> ?,?,64,64,1
 ######
 
             # future prediction
+            # TODO:shift right
 
             print('future prediction...')
 
-            fut_out_tr, fut_st_tr = rnn.custom_dynamic_rnn(fut_cell, input_norm, input_operation=conv_to_input,
+            fut_norm_shifted = tf.concat([dummy, fut_norm], 1)
+            fut_norm_shifted = fut_norm_shifted[:, :-1]
+            fut_out_tr, fut_st_tr = rnn.custom_dynamic_rnn(fut_cell, fut_norm_shifted, input_operation=conv_to_input,
                                                      output_operation=conv_to_output, output_conditioned=False,
                                                      output_dim=None, output_activation=tf.identity,
                                                      initial_state=repr, name='dec_rnn', scope='dec_cell', reuse=True)
+
 
             fut_dummy_te = tf.zeros_like(input_norm)
             fut_out_te, fut_st_te = rnn.custom_dynamic_rnn(fut_cell, fut_dummy_te, input_operation=conv_to_input,
@@ -163,7 +172,7 @@ class pred_model:
             # optimizer
             print('optimization...')
             self.optimizer = self.__adam_optimizer_op(
-                (self.fut_loss + self.repr_loss) + self.weight_decay * self.__calc_weight_l2_panalty())
+                (self.fut_loss + self.recon_loss)) #+ self.weight_decay * self.__calc_weight_l2_panalty())
 
             # output future frames as uint8
             print('output future frames...')
