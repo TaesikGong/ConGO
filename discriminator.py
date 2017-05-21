@@ -29,16 +29,19 @@ class Discriminator:
         self.D_fake, self.D_logit_fake = self.discriminator(p_g_conv_flat)
         self.D_real, self.D_logit_real = self.discriminator(p_data_conv_flat)
 
-        self.D_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(
-                logits=self.D_logit_real, labels=tf.ones_like(self.D_logit_real)))
-        self.D_loss_fake = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(
-                logits=self.D_logit_fake, labels=tf.zeros_like(self.D_logit_fake)))
-        
-        self.D_loss = self.D_loss_real + self.D_loss_fake
-        self.G_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(
-            logits=self.D_logit_fake, labels=tf.ones_like(self.D_logit_fake))) + \
-                      tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(
-                          logits=self.D_logit_real, labels=tf.zeros_like(self.D_logit_real)))
+        self.D_loss_real = tf.reduce_mean(tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(
+                logits=self.D_logit_real, labels=tf.ones_like(self.D_logit_real)), [2, 3, 4]))
+        self.D_loss_fake = tf.reduce_mean(tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(
+                logits=self.D_logit_fake, labels=tf.zeros_like(self.D_logit_fake)), [2, 3, 4]))
+        self.G_loss_real = tf.reduce_mean(tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(
+            logits=self.D_logit_fake, labels=tf.ones_like(self.D_logit_fake)), [2, 3, 4]))
+        self.G_loss_fake = tf.reduce_mean(tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(
+            logits=self.D_logit_real, labels=tf.zeros_like(self.D_logit_real)), [2, 3, 4]))
+
+        self.D_loss = (self.D_loss_real + self.D_loss_fake)
+        self.G_loss = 0.01 * (self.G_loss_real + self.G_loss_fake)
+
+
 
         theta_D = [self.D_W1, self.D_b1, self.D_W2, self.D_b2,
                    self.cv1_f, self.cv1_b, 
@@ -46,8 +49,9 @@ class Discriminator:
                    self.cv3_f, self.cv3_b,
                    ]
 
-        self.D_solver = tf.train.AdamOptimizer().minimize(self.D_loss, var_list=theta_D)
         self.G_solver = tf.train.AdamOptimizer().minimize(self.G_loss, var_list=g_vars)
+        self.D_solver = tf.train.AdamOptimizer().minimize(self.D_loss, var_list=theta_D)
+
 
     def discriminator(self, inputs):
         hidden_layer = tf.nn.relu(tf.matmul(inputs, self.D_W1) + self.D_b1)
