@@ -216,10 +216,10 @@ if __name__ == '__main__':
     inp_vid, fut_vid = np.split(x_batch, 2, axis=1)
     inp_vid, fut_vid = np.expand_dims(inp_vid, -1), np.expand_dims(fut_vid, -1)    
     net = pred_model(batch_size=opts.batch_size)
-
+	
     sess_config = tf.ConfigProto()
     sess_config.gpu_options.allow_growth = True
-
+    mnist = np.load('./data/mnist_test_seq.npy') # Moving Mnist file
     saver = tf.train.Saver(max_to_keep=2)
     dir_name = "weights_conv"
     if not os.path.exists(dir_name):
@@ -235,11 +235,15 @@ if __name__ == '__main__':
 
         else:
             tf.global_variables_initializer().run()
-
-        for step in xrange(init_step, 41):
-            x_batch = batch_generator.next()            
+        mnist = mnist.astype(np.float) / 255 # 0~ 255 -> 0 ~ 1
+        for step in xrange(init_step, 1): # max 250            
+			#x_batch = batch_generator.next()
+			
+            x_batch = mnist[:,step * 40,:,:].reshape((1,20,64,64))
+            for i in range(1,40):
+                x_batch = np.concatenate( (x_batch,mnist[:, (step * 40) + i,:,:].reshape((1,20,64,64))) )			
+            x_batch = x_batch.reshape(40,20,64,64,1) #(40, 20, 64, 64, 1)			
             inp_vid, fut_vid = np.split(x_batch, 2, axis=1)
-
             inp_vid, fut_vid = np.expand_dims(inp_vid, -1), np.expand_dims(fut_vid, -1)
 
             _, fut_loss = sess.run([net.optimizer, net.fut_loss],
