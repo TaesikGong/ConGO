@@ -40,7 +40,6 @@ class Discriminator:
         self.G_loss = (self.G_loss_real)
 
 
-
         theta_D = [self.D_W1, self.D_b1, self.D_W2, self.D_b2,
                    self.cv1_f, self.cv1_b, 
                    self.cv2_f, self.cv2_b, 
