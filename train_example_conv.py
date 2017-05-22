@@ -15,7 +15,6 @@ def vid_show_thread(output_vid):
 class pred_model:
     def __init__(self, batch_size=80):
         with tf.device('/gpu:0'):
-        ####with tf.device('/cpu:0'):
             self.input_frames = tf.placeholder(tf.float32, shape=[None, None, 64, 64, 1], name='input_frames')
             self.fut_frames = tf.placeholder(tf.float32, shape=[None, None, 64, 64, 1], name='future_frames')
             self.keep_prob = tf.Variable(1.0, dtype=tf.float32, trainable=False, name='keep_prob')
@@ -113,37 +112,13 @@ class pred_model:
                 tf.contrib.rnn.LSTMStateTuple(enc_s[1][0], repr[1][1]))
 
 
-            #TODO:shift right
-            dummy = tf.expand_dims(tf.zeros_like(input_norm[:, 0]), axis=1)#bx1xhxwxd
-            input_norm_reverse = input_norm
-            input_norm_reverse = tf.reverse(input_norm_reverse, [1])#2 or 1?
-            input_norm_shifted = tf.concat([dummy, input_norm_reverse], 1)
-            input_norm_shifted = input_norm_shifted[:, :-1]
-
-            #input_norm_reverse = tf.reshape(input_norm_reverse, tf.shape(input_norm))
-
-            recon_out, recon_st = rnn.custom_dynamic_rnn(recon_cell, input_norm_shifted, input_operation=conv_to_input,
-                                                           output_operation=conv_to_output, output_conditioned=False,
-                                                           output_dim=None, output_activation=tf.identity,
-                                                           initial_state=repr, name='dec_rnn_recon', scope='dec_cell_recon')
-
-            # future ground-truth (0 or 1)
-            recon_logit = tf.greater(input_norm_reverse, 0.)
-
-            # loss calculation
-            self.recon_loss = \
-                tf.nn.sigmoid_cross_entropy_with_logits(logits=recon_out,
-                                                        labels=tf.cast(recon_logit, tf.float32))
-            self.recon_loss = tf.reduce_mean(tf.reduce_sum(self.recon_loss, [2, 3, 4]))  # ?,?,4096 -> ?,?,64,64,1
-######
-
-            # future prediction
-            # TODO:shift right
 
             print('future prediction...')
 
+            dummy = tf.expand_dims(tf.zeros_like(input_norm[:, 0]), axis=1)#bx1xhxwxd
             fut_norm_shifted = tf.concat([dummy, fut_norm], 1)
             fut_norm_shifted = fut_norm_shifted[:, :-1]
+
             fut_out_tr, fut_st_tr = rnn.custom_dynamic_rnn(fut_cell, fut_norm_shifted, input_operation=conv_to_input,
                                                      output_operation=conv_to_output, output_conditioned=False,
                                                      output_dim=None, output_activation=tf.identity,
@@ -161,6 +136,7 @@ class pred_model:
             fut_o, fut_s = tf.cond(self.test_case, lambda: (tf.convert_to_tensor(fut_out_te), tf.convert_to_tensor(fut_st_te)),
                                    lambda: (tf.convert_to_tensor(fut_out_tr), tf.convert_to_tensor(fut_st_tr)), name=None)
 
+
             # future ground-truth (0 or 1)
             fut_logit = tf.greater(fut_norm, 0.)
 
@@ -172,7 +148,7 @@ class pred_model:
             # optimizer
             print('optimization...')
             self.optimizer = self.__adam_optimizer_op(
-                (self.fut_loss + self.recon_loss)) #+ self.weight_decay * self.__calc_weight_l2_panalty())
+                (self.fut_loss)) #+ self.weight_decay * self.__calc_weight_l2_panalty())
 
             # output future frames as uint8
             print('output future frames...')
@@ -230,7 +206,7 @@ if __name__ == '__main__':
 
 
     saver = tf.train.Saver(max_to_keep=2)
-    dir_name = "weights_ccc"
+    dir_name = "weights_cond"
 
     if not os.path.exists(dir_name):
         os.makedirs(dir_name) # make directory if not exists
