@@ -15,8 +15,8 @@ class Discriminator:
 
         P_G = tf.reshape(p_g, [-1, 64, 64, 1])
         P_DATA = tf.reshape(p_data, [-1, 64, 64, 1])
-        p_g_conv = self.conv_to_input(P_G, 'p_g')
-        p_data_conv = self.conv_to_input(P_DATA, 'p_data')
+        p_g_conv = self.conv_to_input(P_G, 'p_g', False)
+        p_data_conv = self.conv_to_input(P_DATA, 'p_g', True)
         p_g_conv_flat = tf.reshape(p_g_conv, [-1, 7*7*256])
         p_data_conv_flat = tf.reshape(p_data_conv, [-1, 7*7*256])
 
@@ -35,11 +35,9 @@ class Discriminator:
                 logits=self.D_logit_fake, labels=tf.zeros_like(self.D_logit_fake)), [1]))
         self.G_loss_real = tf.reduce_mean(tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(
             logits=self.D_logit_fake, labels=tf.ones_like(self.D_logit_fake)), [1]))
-        self.G_loss_fake = tf.reduce_mean(tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(
-            logits=self.D_logit_real, labels=tf.zeros_like(self.D_logit_real)), [1]))
 
         self.D_loss = (self.D_loss_real + self.D_loss_fake)
-        self.G_loss = 0.01 * (self.G_loss_real + self.G_loss_fake)
+        self.G_loss = (self.G_loss_real)
 
 
 
@@ -49,8 +47,8 @@ class Discriminator:
                    self.cv3_f, self.cv3_b,
                    ]
 
-        self.G_solver = tf.train.AdamOptimizer().minimize(self.G_loss, var_list=g_vars)
-        self.D_solver = tf.train.AdamOptimizer().minimize(self.D_loss, var_list=theta_D)
+        self.G_solver = tf.train.AdamOptimizer(1e-4).minimize(self.G_loss * 1e-5, var_list=g_vars)
+        self.D_solver = tf.train.AdamOptimizer(1e-4).minimize(self.D_loss, var_list=theta_D)
 
 
     def discriminator(self, inputs):
@@ -59,12 +57,12 @@ class Discriminator:
         discrimination = tf.sigmoid(D_logit)
         return discrimination, D_logit
 
-    def conv_to_input(self, input_, name):
+    def conv_to_input(self, input_, name, reuse):
         dim1 = 16
         dim2 = 64
         cell_dim = 256
         bias_start = 0.0
-        with tf.variable_scope(name):
+        with tf.variable_scope(name, reuse=reuse):
             self.cv1_f = tf.get_variable("weights_cv1_f", shape=[3, 3, 1, dim1],
                                     initializer=tf.random_uniform_initializer(-0.01, 0.01))
             self.cv1_b = tf.get_variable("weights_cv1_b", shape=[dim1],
