@@ -125,7 +125,7 @@ class pred_model:
             recon_out, recon_st = rnn.custom_dynamic_rnn(recon_cell, input_norm_shifted, input_operation=conv_to_input,
                                                            output_operation=conv_to_output, output_conditioned=False,
                                                            output_dim=None, output_activation=tf.identity,
-                                                           initial_state=repr, name='dec_rnn', scope='dec_cell')
+                                                           initial_state=repr, name='dec_rnn_recon', scope='dec_cell_recon')
 
             # future ground-truth (0 or 1)
             recon_logit = tf.greater(input_norm_reverse, 0.)
@@ -147,7 +147,7 @@ class pred_model:
             fut_out_tr, fut_st_tr = rnn.custom_dynamic_rnn(fut_cell, fut_norm_shifted, input_operation=conv_to_input,
                                                      output_operation=conv_to_output, output_conditioned=False,
                                                      output_dim=None, output_activation=tf.identity,
-                                                     initial_state=repr, name='dec_rnn', scope='dec_cell', reuse=True)
+                                                     initial_state=repr, name='dec_rnn_fut', scope='dec_cell_fut', reuse=False)
 
 
             fut_dummy_te = tf.zeros_like(input_norm)
@@ -155,7 +155,7 @@ class pred_model:
                                                      output_operation=conv_to_output, output_conditioned=True,
                                                      output_dim=None, output_activation=tf.identity,
                                                      recurrent_activation=tf.sigmoid,
-                                                     initial_state=repr, name='dec_rnn', scope='dec_cell', reuse=True)
+                                                     initial_state=repr, name='dec_rnn_fut', scope='dec_cell_fut', reuse=True)
 
 
             fut_o, fut_s = tf.cond(self.test_case, lambda: (tf.convert_to_tensor(fut_out_te), tf.convert_to_tensor(fut_st_te)),

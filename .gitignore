@@ -3,3 +3,4 @@
 *.h5
 weights*/
 *.swp
+data/mnist_test_seq.npy
