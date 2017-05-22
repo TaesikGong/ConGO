@@ -5,8 +5,9 @@ import util.rnn_ops_conv as rnn
 import data.moving_mnist as mm_data
 import os
 import sys
+import DataToVideo
+import DataToImg
 from datetime import datetime
-
 def vid_show_thread(output_vid):
     for i in xrange(output_vid.shape[0]):
         cv2.imshow('vid', output_vid[i])
@@ -15,7 +16,7 @@ def vid_show_thread(output_vid):
 #comment
 class pred_model:
     def __init__(self, batch_size=80):
-        with tf.device('/gpu:0'):
+        with tf.device('/cpu:0'):
             self.input_frames = tf.placeholder(tf.float32, shape=[None, None, 64, 64, 1], name='input_frames')
             self.fut_frames = tf.placeholder(tf.float32, shape=[None, None, 64, 64, 1], name='future_frames')
             self.keep_prob = tf.Variable(1.0, dtype=tf.float32, trainable=False, name='keep_prob')
@@ -201,7 +202,7 @@ class pred_model:
         return l2_loss
 
 
-if __name__ == '__main__':
+if __name__ == '__main__': 
     opts = mm_data.BouncingMNISTDataHandler.options()
     opts.batch_size = 40  # 80
     opts.image_size = 64
@@ -211,7 +212,9 @@ if __name__ == '__main__':
     min_loss = np.inf
     moving_mnist = mm_data.BouncingMNISTDataHandler(opts)
     batch_generator = moving_mnist.GetBatchThread()
-
+    x_batch = batch_generator.next()            
+    inp_vid, fut_vid = np.split(x_batch, 2, axis=1)
+    inp_vid, fut_vid = np.expand_dims(inp_vid, -1), np.expand_dims(fut_vid, -1)    
     net = pred_model(batch_size=opts.batch_size)
 
     sess_config = tf.ConfigProto()
@@ -233,8 +236,8 @@ if __name__ == '__main__':
         else:
             tf.global_variables_initializer().run()
 
-        for step in xrange(init_step, 500000):
-            x_batch = batch_generator.next()
+        for step in xrange(init_step, 41):
+            x_batch = batch_generator.next()            
             inp_vid, fut_vid = np.split(x_batch, 2, axis=1)
 
             inp_vid, fut_vid = np.expand_dims(inp_vid, -1), np.expand_dims(fut_vid, -1)
@@ -255,10 +258,20 @@ if __name__ == '__main__':
             if step % 40 == 0:
                 o_vid = sess.run(net.fut_output, feed_dict={net.input_frames: inp_vid,
                                                             net.fut_frames: fut_vid})
-
                 o_vid = o_vid[0].reshape([opts.num_frames // 2, opts.image_size, opts.image_size])
                 output_vid = np.concatenate(
                     (np.squeeze((x_batch * 255).astype(np.uint8))[0][0:opts.num_frames // 2], o_vid), axis=0)
                 threading.Thread(target=vid_show_thread, args=([output_vid])).start()
+                # Make Video with Loss.	
+                ResultData = []
+                ResultData.append(output_vid)
+                ResultData.append(np.squeeze((x_batch * 255).astype(np.uint8))[0].reshape((20,64,64)))
+                ResultData.append(fut_loss)           
+                DataToVideo.MakeVideo(ResultData) # OUTPUT = output_loss_[loss]_.mp4
+                # Make /images/ folder first!
+                # MakeImage(output_vid) # argument should be 20 * 64 * 64
+				
+		#print(output_vid.shape,inp_vid.shape,fut_vid.shape)
+		#((20, 64, 64), (40, 10, 64, 64, 1), (40, 10, 64, 64, 1))
 
 #

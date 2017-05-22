@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use('Agg')
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as manimation
@@ -10,25 +12,32 @@ blank_y = np.ones((10, 212)) * 255
 SkipFirst = True
 i = 0
 count = 0
+
 FFMpegWriter = manimation.writers['ffmpeg']
 metadata = dict(title='Movie Test', artist='Matplotlib', comment='Movie support!')
 
 
-def MakeVideo(mnist):
-
+def MakeVideo(mnist):    
     # mnist[20][10000][64][64]
     # frame * Numberdata * windowsize_x * windowsize_y
     # initialization function: plot the background of each frame
 #    mnist = np.load('mnist_test_seq.npy')
+
     ig = plt.figure()
-    plt.axis("off")
-    a = (mnist[0][0])
-    im = plt.imshow(a, interpolation='none', cmap=plt.get_cmap('gray'))
-    writer = FFMpegWriter(fps=15, metadata=metadata)
-
-
+    plt.axis("off")        
+    writer = FFMpegWriter(fps=5, metadata=metadata)
+    #initarray = mnist[0]
+    loss = str(mnist[2])
+    initarray = np.concatenate( (mnist[0][0],mnist[1][0]),axis= 1)
+    im = plt.imshow(initarray, interpolation='none', cmap=plt.get_cmap('gray'))    
     im_ani = manimation.FuncAnimation(ig,animate,NumSample * NumFrame,fargs = (im,mnist))
-    im_ani.save('im.mp4', writer=writer)
+    im_ani.save('output' + '_loss_' + loss + '_.mp4', writer=writer)	
+'''
+    im = plt.imshow(mnist[1][0], interpolation='none', cmap=plt.get_cmap('gray'))
+    im_ani = manimation.FuncAnimation(ig,animate,NumSample * NumFrame,fargs = (im,mnist[1]))
+    im_ani.save('result' + 'loss_' + loss + '.mp4', writer=writer)
+'''	
+	
 
 def animate(Num,im,mnist):
     global i
@@ -37,7 +46,14 @@ def animate(Num,im,mnist):
     global NumFrame
     #global im
     global blank_x, blank_y
-
+    if  (SkipFirst == True):
+        SkipFirst = False
+        return [im]
+    sumarray = np.concatenate( (mnist[0][Num], blank_x, mnist[1][Num]), axis = 1 )
+    #sumarray = mnist[Num]
+    im.set_array(sumarray)
+    return [im]
+'''
     if  SkipFirst == True:
         SkipFirst = False
         return [im]
@@ -45,10 +61,8 @@ def animate(Num,im,mnist):
         Num = Num % NumFrame
     if (count > 19) and (Num % NumFrame) == 0:
         i += 9
-    im.set_array(mnist[Num][i])
-    count += 1
-    return [im]
-
+    
+'''
 '''
     print ('Num = %d, Frame = %d' % (Num, i/9))
     a = np.concatenate((mnist[Num][i], blank_x, mnist[Num][i + 1], blank_x, mnist[Num][i + 2]), axis=1)
