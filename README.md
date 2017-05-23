@@ -35,6 +35,6 @@ $ python evaluation_conv.py [weight-set]
 
  기존 프로그램과 실행방법 동일하며, 실행시 Video폴더가 생성되며, 그안에 비디오들이 저장됨.
  
- 데이터셋은 기존것을 사용하지 말고 /home/gwkim/ConGO_temp/data/moving_mnist.npy 를 복사할것.
+ Test data set :  https://drive.google.com/open?id=0B4DyTsz0E9HFakRhb2FPVzJieUE
  
  (편의상 배열 형태만 수정해서 저장한 것으로, 기존 Moving mnist 데이터와 배열이 다름)
