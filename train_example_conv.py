@@ -217,7 +217,7 @@ if __name__ == '__main__':
     sess_config = tf.ConfigProto()
     sess_config.gpu_options.allow_growth = True
 
-    saver = tf.train.Saver(max_to_keep=2)
+    saver = tf.train.Saver(max_to_keep=5)
     dir_name = "weights_conv"
     if not os.path.exists(dir_name):
         os.makedirs(dir_name) # make directory if not exists
@@ -244,7 +244,7 @@ if __name__ == '__main__':
                                               net.fut_frames: fut_vid})
 
             print ("[step %d] loss: %f" % (step, fut_loss))
-            if fut_loss < min_loss - 5: # THRESHOLD
+            if fut_loss < min_loss - 1: # THRESHOLD
                 saver.save(sess, dir_name+"/{}__step{}__loss{:f}".format(
                     str(datetime.now()).replace(' ','_'),
                     step,
