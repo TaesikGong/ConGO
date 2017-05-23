@@ -9,6 +9,7 @@ from datetime import datetime
 
 def vid_show_thread(output_vid):
     for i in xrange(output_vid.shape[0]):
+    ###for i in range(output_vid.shape[0]):
         cv2.imshow('vid', output_vid[i])
         cv2.waitKey(100)
 
@@ -183,6 +184,7 @@ class pred_model:
         cells = [rnn.ConvLSTMCell([None, 7, 7, cell_dim], [5, 5], use_peepholes=True, forget_bias=0.,
                                                        initializer=tf.random_uniform_initializer(-0.01, 0.01))
                  for _ in xrange(num_multi_cells)]
+                ###for _ in range(num_multi_cells)]
 
         multi_cell = rnn.MultiRNNCell(cells)
         return multi_cell
@@ -205,6 +207,7 @@ class pred_model:
 
         l2_loss = 0.
         for i in xrange(len(trainable_vnames)):
+        ###for i in range(len(trainable_vnames)):
             if trainable_vnames[i].split('/')[-1].startswith('weights'):
                 l2_loss += tf.nn.l2_loss(trainable_vars[i])
 
@@ -248,6 +251,7 @@ if __name__ == '__main__':
             tf.global_variables_initializer().run()
 
         for step in xrange(init_step, 500000):
+        ###for step in range(init_step, 500000):
             x_batch = batch_generator.next()
             ###x_batch = next(batch_generator)
             inp_vid, fut_vid = np.split(x_batch, 2, axis=1)
@@ -272,6 +276,7 @@ if __name__ == '__main__':
                 print ("[step %d] Test CE: %f"
                        % (step, fut_loss_cross))
 
+                ###'''
                 if fut_loss_cross < min_loss - 5:  # THRESHOLD
                     saver.save(sess, dir_name + "/{}__step{}__loss{:f}".format(
                         str(datetime.now()).replace(' ', '_'),
@@ -279,6 +284,7 @@ if __name__ == '__main__':
                         fut_loss_cross
                     ))
                     min_loss = fut_loss_cross
+                ###'''
 
                 o_vid = o_vid[0].reshape([opts.num_frames // 2, opts.image_size, opts.image_size])
                 output_vid = np.concatenate(
