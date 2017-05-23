@@ -29,8 +29,8 @@ $ python train_example_conv.py weights_conv/2017-05-10_22:51:26.218343__step0__l
 ## Video Evaluation
 
 ```bash
-$ evaluation.py [weight-set]
-$ evaluation_conv.py [weight-set]
+$ python evaluation.py [weight-set]
+$ python evaluation_conv.py [weight-set]
 ```
 
  기존 프로그램과 실행방법 동일하며, 실행시 Video폴더가 생성되며, 그안에 비디오들이 저장됨.
