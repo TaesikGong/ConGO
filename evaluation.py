@@ -64,8 +64,7 @@ class pred_model:
 
             # optimizer
             self.optimizer = self.__adam_optimizer_op(
-                self.fut_loss + self.weight_decay * self.__calc_weight_l2_panalty())
-
+            self.fut_loss + self.weight_decay * self.__calc_weight_l2_panalty())
             # output future frames as uint8
             self.fut_output = tf.cast(tf.clip_by_value(tf.sigmoid(fut_o) * 255, 0, 255), tf.uint8)
 
@@ -124,7 +123,10 @@ if __name__ == '__main__':
     if not os.path.exists(dir_name):
         os.makedirs(dir_name) # make directory if not exists
     mnist = np.load('./data/moving_mnist.npy')
-    mnist = mnist.astype(np.float) / 255 # 0~ 255 -> 0 ~ 1	
+    mnist = mnist.astype(np.float) / 255 # 0~ 255 -> 0 ~ 1
+    num_dataset = 5
+    avg_loss = 0
+
     with tf.Session(config=sess_config) as sess:
         init_step = 0
         if len(sys.argv) > 1 and sys.argv[1]:
@@ -135,16 +137,19 @@ if __name__ == '__main__':
 
         else:
             tf.global_variables_initializer().run()
-		
-        for step in range(0, 50):
+
+
+        for step in xrange(0, num_dataset):
             x_batch = mnist[step].reshape(1,20,64,64)			
             inp_vid, fut_vid = np.split(x_batch, 2, axis=1)
 
             inp_vid, fut_vid = np.expand_dims(inp_vid, -1), np.expand_dims(fut_vid, -1)
 
             fut_loss = sess.run([net.fut_loss], feed_dict={net.input_frames: inp_vid, net.fut_frames: fut_vid})
-            #fut_loss = 10
-			
+            fut_loss = fut_loss[0]
+
+            avg_loss += fut_loss
+
             print ("[step %d] loss: %f" % (step, fut_loss))
             if fut_loss < min_loss - 5: # THRESHOLD
                 saver.save(sess, dir_name+"/{}__step{}__loss{:f}".format(str(datetime.now()).replace(' ','_'),step,fut_loss))
@@ -159,3 +164,5 @@ if __name__ == '__main__':
             ResultData.append(np.squeeze((x_batch * 255).astype(np.uint8)).reshape((20,64,64)))
             ResultData.append(fut_loss)           
             DataToVideo.MakeVideo(ResultData,step,Vdir_name)
+
+    print ("avg:", avg_loss/float(num_dataset))
