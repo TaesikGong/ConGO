@@ -16,7 +16,7 @@ def vid_show_thread(output_vid):
 
 class pred_model:
     def __init__(self):
-        with tf.device('/cpu:0'):
+        with tf.device('/gpu:0'):
             self.input_frames = tf.placeholder(tf.float32, shape=[None, None, 64, 64, 1],
                                                name='input_frames')  # batch,sqe,x,y,features
             self.fut_frames = tf.placeholder(tf.float32, shape=[None, None, 64, 64, 1], name='future_frames')
@@ -114,7 +114,6 @@ if __name__ == '__main__':
     opts.step_length = 0.1
     min_loss = np.inf
     moving_mnist = mm_data.BouncingMNISTDataHandler(opts)
-#    batch_generator = moving_mnist.GetBatchThread()
     net = pred_model()
     sess_config = tf.ConfigProto()
     sess_config.gpu_options.allow_growth = True
@@ -143,8 +142,8 @@ if __name__ == '__main__':
 
             inp_vid, fut_vid = np.expand_dims(inp_vid, -1), np.expand_dims(fut_vid, -1)
 
-            #_, fut_loss = sess.run([net.optimizer, net.fut_loss],feed_dict={net.input_frames: inp_vid,net.fut_frames: fut_vid})
-            fut_loss = 10
+            fut_loss = sess.run([net.fut_loss], feed_dict={net.input_frames: inp_vid, net.fut_frames: fut_vid})
+            #fut_loss = 10
 			
             print ("[step %d] loss: %f" % (step, fut_loss))
             if fut_loss < min_loss - 5: # THRESHOLD
