@@ -25,3 +25,16 @@ loss~.~~~~~~ (소수점 밑 6자리까지)
 $ python train_example.py weights/2017-05-10_22:51:26.218343__step0__loss2839.130859
 $ python train_example_conv.py weights_conv/2017-05-10_22:51:26.218343__step0__loss2839.130859
 ```
+
+## Video Evaluation
+
+```bash
+$ evaluation.py [weight-set]
+$ evaluation_conv.py [weight-set]
+```
+
+ 기존 프로그램과 실행방법 동일하며, 실행시 Video폴더가 생성되며, 그안에 비디오들이 저장됨.
+ 
+ 데이터셋은 기존것을 사용하지 말고 /home/gwkim/ConGO_temp/data/moving_mnist.npy 를 복사할것.
+ 
+ (편의상 배열 형태만 수정해서 저장한 것으로, 기존 Moving mnist 데이터와 배열이 다름)
