@@ -7,8 +7,9 @@ cs570_2017_spring_term project
 ## Branches
 - master branch: (1)train_example: simple LSTM, (2) train_example_conv: Conv+deconv + convLSTM
 - condDec branch: master/train_example_conv + conditioned decoder
-- composite branch : condDec + composite decoder
-- GAN branch: composite + GAN
+- composite branch : composite decoder
+- ccc branch : composite + conditioned decoder
+- GAN branch: GAN
 
 ## Weight save & load
 
