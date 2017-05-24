@@ -4,3 +4,4 @@
 weights*/
 *.swp
 data/mnist_test_seq.npy
+data/moving_mnist.npy
