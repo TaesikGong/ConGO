@@ -14,7 +14,7 @@ def vid_show_thread(output_vid):
 
 class pred_model:
     def __init__(self, batch_size=80):
-        with tf.device('/gpu:0'):
+        with tf.device('/gpu:1'):
             self.input_frames = tf.placeholder(tf.float32, shape=[None, None, 64, 64, 1], name='input_frames')
             self.fut_frames = tf.placeholder(tf.float32, shape=[None, None, 64, 64, 1], name='future_frames')
             self.keep_prob = tf.Variable(1.0, dtype=tf.float32, trainable=False, name='keep_prob')
@@ -205,7 +205,7 @@ if __name__ == '__main__':
     sess_config.gpu_options.allow_growth = True
 
 
-    saver = tf.train.Saver(max_to_keep=2)
+    saver = tf.train.Saver(max_to_keep=5)
     dir_name = "weights_cond"
 
     if not os.path.exists(dir_name):
@@ -248,7 +248,7 @@ if __name__ == '__main__':
                 print ("[step %d] Test CE: %f"
                        % (step, fut_loss_cross))
 
-                if fut_loss_cross < min_loss - 5:  # THRESHOLD
+                if fut_loss_cross < min_loss - 1:  # THRESHOLD
                     saver.save(sess, dir_name + "/{}__step{}__loss{:f}".format(
                         str(datetime.now()).replace(' ', '_'),
                         step,
