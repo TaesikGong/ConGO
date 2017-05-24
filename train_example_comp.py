@@ -115,15 +115,12 @@ class pred_model:
 
 
             #TODO:shift right
-            dummy = tf.expand_dims(tf.zeros_like(input_norm[:, 0]), axis=1)#bx1xhxwxd
+
+            dummy = tf.zeros_like(enc_o)
             input_norm_reverse = input_norm
-            input_norm_reverse = tf.reverse(input_norm_reverse, [1])#2 or 1?
-            input_norm_shifted = tf.concat([dummy, input_norm_reverse], 1)
-            input_norm_shifted = input_norm_shifted[:, :-1]
+            input_norm_reverse = tf.reverse(input_norm_reverse, [1])
 
-            #input_norm_reverse = tf.reshape(input_norm_reverse, tf.shape(input_norm))
-
-            recon_out, recon_st = rnn.custom_dynamic_rnn(recon_cell, input_norm_shifted, input_operation=conv_to_input,
+            recon_out, recon_st = rnn.custom_dynamic_rnn(recon_cell, dummy,
                                                            output_operation=conv_to_output, output_conditioned=False,
                                                            output_dim=None, output_activation=tf.identity,
                                                            initial_state=repr, name='dec_rnn_recon', scope='dec_cell_recon')
@@ -143,24 +140,12 @@ class pred_model:
 
             print('future prediction...')
 
-            fut_norm_shifted = tf.concat([dummy, fut_norm], 1)
-            fut_norm_shifted = fut_norm_shifted[:, :-1]
-            fut_out_tr, fut_st_tr = rnn.custom_dynamic_rnn(fut_cell, fut_norm_shifted, input_operation=conv_to_input,
+            fut_o, fut_s = rnn.custom_dynamic_rnn(fut_cell, dummy,
                                                      output_operation=conv_to_output, output_conditioned=False,
                                                      output_dim=None, output_activation=tf.identity,
                                                      initial_state=repr, name='dec_rnn_fut', scope='dec_cell_fut', reuse=False)
 
 
-            fut_dummy_te = tf.zeros_like(input_norm)
-            fut_out_te, fut_st_te = rnn.custom_dynamic_rnn(fut_cell, fut_dummy_te, input_operation=conv_to_input,
-                                                     output_operation=conv_to_output, output_conditioned=True,
-                                                     output_dim=None, output_activation=tf.identity,
-                                                     recurrent_activation=tf.sigmoid,
-                                                     initial_state=repr, name='dec_rnn_fut', scope='dec_cell_fut', reuse=True)
-
-
-            fut_o, fut_s = tf.cond(self.test_case, lambda: (tf.convert_to_tensor(fut_out_te), tf.convert_to_tensor(fut_st_te)),
-                                   lambda: (tf.convert_to_tensor(fut_out_tr), tf.convert_to_tensor(fut_st_tr)), name=None)
 
             # future ground-truth (0 or 1)
             fut_logit = tf.greater(fut_norm, 0.)
@@ -232,8 +217,8 @@ if __name__ == '__main__':
     sess_config.gpu_options.allow_growth = True
 
 
-    saver = tf.train.Saver(max_to_keep=2)
-    dir_name = "weights_ccc"
+    saver = tf.train.Saver(max_to_keep=3)
+    dir_name = "weights_comp"
 
     if not os.path.exists(dir_name):
         os.makedirs(dir_name) # make directory if not exists
@@ -277,7 +262,7 @@ if __name__ == '__main__':
                        % (step, fut_loss_cross))
 
                 ###'''
-                if fut_loss_cross < min_loss - 5:  # THRESHOLD
+                if fut_loss_cross < min_loss - 1:  # THRESHOLD
                     saver.save(sess, dir_name + "/{}__step{}__loss{:f}".format(
                         str(datetime.now()).replace(' ', '_'),
                         step,
