@@ -205,7 +205,7 @@ if __name__ == '__main__':
     sess_config.gpu_options.allow_growth = True
 
 
-    saver = tf.train.Saver(max_to_keep=5)
+    saver = tf.train.Saver(max_to_keep=3)
     dir_name = "weights_cond"
 
     if not os.path.exists(dir_name):
@@ -248,13 +248,13 @@ if __name__ == '__main__':
                 print ("[step %d] Test CE: %f"
                        % (step, fut_loss_cross))
 
-                if fut_loss_cross < min_loss - 1:  # THRESHOLD
-                    saver.save(sess, dir_name + "/{}__step{}__loss{:f}".format(
-                        str(datetime.now()).replace(' ', '_'),
-                        step,
-                        fut_loss_cross
-                    ))
-                    min_loss = fut_loss_cross
+                #if fut_loss_cross < min_loss - 1:  # THRESHOLD
+                saver.save(sess, dir_name + "/{}__step{}__loss{:f}".format(
+                    str(datetime.now()).replace(' ', '_'),
+                    step,
+                    fut_loss_cross
+                ))
+                min_loss = fut_loss_cross
 
                 o_vid = o_vid[0].reshape([opts.num_frames // 2, opts.image_size, opts.image_size])
                 output_vid = np.concatenate(
