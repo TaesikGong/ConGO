@@ -118,10 +118,12 @@ class pred_model:
             dummy = tf.expand_dims(tf.zeros_like(input_norm[:, 0]), axis=1)#bx1xhxwxd
             fut_norm_shifted = tf.concat([dummy, fut_norm], 1)
             fut_norm_shifted = fut_norm_shifted[:, :-1]
+            fut_dummy_tr = tf.zeros_like(input_norm)
 
-            fut_out_tr, fut_st_tr = rnn.custom_dynamic_rnn(fut_cell, fut_norm_shifted, input_operation=conv_to_input,
-                                                     output_operation=conv_to_output, output_conditioned=False,
+            fut_out_tr, fut_st_tr = rnn.custom_dynamic_rnn(fut_cell, fut_dummy_tr, input_operation=conv_to_input,
+                                                     output_operation=conv_to_output, output_conditioned=True,
                                                      output_dim=None, output_activation=tf.identity,
+                                                     recurrent_activation=tf.sigmoid,
                                                      initial_state=repr, name='dec_rnn_fut', scope='dec_cell_fut', reuse=False)
 
 
