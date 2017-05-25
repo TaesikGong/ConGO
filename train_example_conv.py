@@ -17,7 +17,7 @@ def vid_show_thread(output_vid):
 #comment
 class pred_model:
     def __init__(self, batch_size=80):
-        with tf.device('/gpu:1'):
+        with tf.device('/gpu:0'):
             self.input_frames = tf.placeholder(tf.float32, shape=[None, None, 64, 64, 1], name='input_frames')
             self.fut_frames = tf.placeholder(tf.float32, shape=[None, None, 64, 64, 1], name='future_frames')
             self.keep_prob = tf.Variable(1.0, dtype=tf.float32, trainable=False, name='keep_prob')

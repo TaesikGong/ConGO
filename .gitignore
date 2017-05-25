@@ -3,3 +3,5 @@
 *.h5
 weights*/
 *.swp
+Video/
+data/moving_mnist.npy
