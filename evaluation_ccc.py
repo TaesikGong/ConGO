@@ -211,35 +211,27 @@ class pred_model:
 
         return l2_loss
 
-
-
 if __name__ == '__main__':
     opts = mm_data.BouncingMNISTDataHandler.options()
     opts.batch_size = 1  # 80
     opts.image_size = 64
     opts.num_digits = 2
     opts.num_frames = 20##first half is for input, latter is ground-truth
-    opts.step_length = 0.1
+    opts.step_length = 0.1    
     min_loss = np.inf
-    moving_mnist = mm_data.BouncingMNISTDataHandler(opts)
-    batch_generator = moving_mnist.GetBatchThread()
+    moving_mnist = mm_data.BouncingMNISTDataHandler(opts)    
 
     net = pred_model(batch_size=opts.batch_size)
 
-    ####
     sess_config = tf.ConfigProto()
     sess_config.gpu_options.allow_growth = True
 
-
-    saver = tf.train.Saver(max_to_keep=3)
-    dir_name = "weights_ccc"
+    saver = tf.train.Saver(max_to_keep=2)    
     Vdir_name = "./Video_ccc/"
-    if not os.path.exists(dir_name):
-        os.makedirs(dir_name) # make directory if not exists
     mnist = np.load('./data/moving_mnist.npy')
     mnist = mnist.astype(np.float) / 255 # 0~ 255 -> 0 ~ 1	
+    sumloss = 0
     with tf.Session(config=sess_config) as sess:
-    ####with tf.Session() as sess:
         init_step = 0
         if len(sys.argv) > 1 and sys.argv[1]:
             import re
@@ -249,32 +241,26 @@ if __name__ == '__main__':
 
         else:
             tf.global_variables_initializer().run()
-        sumloss = 0
-        numIter = 2
+        numIter = 5
         for step in xrange(0, numIter):
-            #x_batch = batch_generator.next()
-            ###x_batch = next(batch_generator)
-            x_batch = mnist[step].reshape(1,20,64,64)
+            x_batch = mnist[step].reshape(1,20,64,64)			
             inp_vid, fut_vid = np.split(x_batch, 2, axis=1)
 
             inp_vid, fut_vid = np.expand_dims(inp_vid, -1), np.expand_dims(fut_vid, -1)
 
-            fut_loss_cross= sess.run([net.fut_loss],
-                                   feed_dict={net.input_frames: inp_vid,
-                                              net.fut_frames: fut_vid,
-                                              net.test_case: True})
-
-            print ("[step %d] Train loss CE: %f" % (step, fut_loss_cross[0]))            
-            o_vid= sess.run([net.fut_output],feed_dict={net.input_frames: inp_vid,net.fut_frames: fut_vid,net.test_case: True})
-            saver.save(sess, dir_name + "/{}__step{}__loss{:f}".format(
-				str(datetime.now()).replace(' ', '_'),step,fut_loss_cross[0]))
-            min_loss = fut_loss_cross[0]
+            _, fut_loss = sess.run([net.optimizer,net.fut_loss],feed_dict={net.input_frames: inp_vid,net.fut_frames: fut_vid,net.test_case: True})
+			
+            print ("[step %d] loss: %f" % (step, fut_loss))
+            min_loss = fut_loss
             sumloss+=min_loss
+            o_vid = sess.run(net.fut_output, feed_dict={net.input_frames: inp_vid,net.fut_frames: fut_vid,net.test_case: True})
             o_vid = o_vid[0].reshape([opts.num_frames // 2, opts.image_size, opts.image_size])
-            output_vid = np.concatenate((np.squeeze((x_batch * 255).astype(np.uint8))[0:opts.num_frames // 2], o_vid), axis=0)
+            output_vid = np.concatenate((np.squeeze((x_batch * 255).astype(np.uint8))[0:opts.num_frames // 2], o_vid), axis=0)            
             ResultData = []
             ResultData.append(output_vid)
             ResultData.append(np.squeeze((x_batch * 255).astype(np.uint8)).reshape((20,64,64)))
-            ResultData.append(str(min_loss))
+            ResultData.append(fut_loss)           
             DataToVideo.MakeVideo(ResultData,step,Vdir_name)
-        print("Average Loss:" + str(sumloss / np.float(numIter)))
+	        #DataToImg.MakeImage(output_vid,output)
+            #DataToImg.MakeImage(np.squeeze((x_batch * 255).astype(np.uint8)).reshape((20,64,64)),true)
+        print("Average Loss = " + str(sumloss/np.float(numIter)))
