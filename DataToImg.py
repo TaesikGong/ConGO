@@ -2,16 +2,17 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.image as mplimg
 
-def MakeImage(mnist):
+def MakeImage(mnist,name):
 	fig = plt.figure()
 	plt.axis("off")
 	dir_name = "Images"
 	if not os.path.exists(dir_name):
 		os.makedirs(dir_name) # make directory if not exists
 	#im = plt.imshow(dots, interpolation='none', cmap=plt.get_cmap('gray'))
-	for i in range(20):
-		dots = mnist[i][0]
-		plt.imsave('./Images/' + str(i) + '.png',dots,cmap = plt.cm.gray)
+	dots = mnist[0]
+	for i in range(1,20):
+		dots = np.concatenate((dots,mnist[i]),axis=1)
+ 	plt.imsave('./Images/' +i+'_'+ name +'.png',dots,cmap = plt.cm.gray)
 
 
 def main() :

@@ -2,14 +2,16 @@ import tensorflow as tf
 import threading, cv2
 import numpy as np
 import util.rnn_ops_conv as rnn
+import util.general_ops as ops
 import data.moving_mnist as mm_data
 import os
 import sys
+from datetime import datetime
+from discriminator import Discriminator
 import DataToVideo
 import DataToImg
-from datetime import datetime
 def vid_show_thread(output_vid):
-    for i in xrange(output_vid.shape[0]):
+    for i in range(output_vid.shape[0]):
         cv2.imshow('vid', output_vid[i])
         cv2.waitKey(100)
 
@@ -52,26 +54,9 @@ class pred_model:
             def conv_to_input(input, name):
 
                 with tf.variable_scope(name):
-                    # tensor = tf.identity(input, name)
-
-                    cv1_f = tf.get_variable("weights_cv1_f", shape=[3, 3, 1, dim1],
-                                              initializer=tf.random_uniform_initializer(-0.01, 0.01))
-                    cv1_b = tf.get_variable("weights_cv1_b", shape=[dim1],
-                                            initializer=tf.constant_initializer(bias_start))
-                    cv1 = tf.nn.relu(tf.nn.conv2d(input, cv1_f, strides=[1, 2, 2, 1], padding='VALID') + cv1_b)
-
-                    cv2_f = tf.get_variable("weights_cv2_f", shape=[3, 3, dim1, dim2],
-                                            initializer=tf.random_uniform_initializer(-0.01, 0.01))
-                    cv2_b = tf.get_variable("weights_cv2_b", shape=[dim2],
-                                            initializer=tf.constant_initializer(bias_start))
-                    cv2 = tf.nn.relu(tf.nn.conv2d(cv1, cv2_f, strides=[1, 2, 2, 1], padding='VALID') + cv2_b)
-
-                    cv3_f = tf.get_variable("weights_cv3_f", shape=[3, 3, dim2, cell_dim],
-                                            initializer=tf.random_uniform_initializer(-0.01, 0.01))
-                    cv3_b = tf.get_variable("weights_cv3_b", shape=[cell_dim],
-                                            initializer=tf.constant_initializer(bias_start))
-                    cv3 = tf.nn.relu(tf.nn.conv2d(cv2, cv3_f, strides=[1, 2, 2, 1], padding='VALID') + cv3_b)
-
+                    cv1 = ops.basic_conv2d(input, dim1, 'conv1', filt=(5,5), stride=(2,2))
+                    cv2 = ops.basic_conv2d(cv1, dim2, 'conv2', filt=(5,5), stride=(2,2))
+                    cv3 = ops.basic_conv2d(cv2, dim1, 'conv3', filt=(5,5), stride=(2,2))
                     return cv3
 
             def conv_to_output(input, name):
@@ -79,28 +64,13 @@ class pred_model:
                 with tf.variable_scope(name):
 
                     # input = ?,7,7,2048
-                    shape1 = [batch_size, 15, 15, dim2]
-                    dcv1_f = tf.get_variable("weights_dcv1_f", shape=[3, 3, dim2, cell_dim],
-                                             initializer=tf.random_uniform_initializer(-0.01, 0.01))
-                    dcv1_b = tf.get_variable("weights_dcv1_b", shape=[dim2],
-                                             initializer=tf.constant_initializer(bias_start))
-                    dcv1 = tf.nn.relu(tf.nn.conv2d_transpose(input, dcv1_f, output_shape=shape1,
-                                                             strides=[1, 2, 2, 1], padding='VALID') + dcv1_b)
-
-                    shape2 = [batch_size, 31, 31, dim1]
-                    dcv2_f = tf.get_variable("weights_dcv2_f", shape=[3, 3, dim1, dim2],
-                                             initializer=tf.random_uniform_initializer(-0.01, 0.01))
-                    dcv2_b = tf.get_variable("weights_dcv2_b", shape=[dim1],
-                                             initializer=tf.constant_initializer(bias_start))
-                    dcv2 = tf.nn.relu(tf.nn.conv2d_transpose(dcv1, dcv2_f, output_shape=shape2,
-                                                             strides=[1, 2, 2, 1], padding='VALID') + dcv2_b)
-
+                    shape1 = [batch_size, 16, 16, dim2]
+                    shape2 = [batch_size, 32, 32, dim1]
                     shape3 = [batch_size, 64, 64, 1]
-                    dcv3_f = tf.get_variable("weights_dcv3_f", shape=[3, 3, 1, dim1],
-                                             initializer=tf.random_uniform_initializer(-0.01, 0.01))
-                    dcv3_b = tf.get_variable("weights_dcv3_b", shape=[1],
-                                             initializer=tf.constant_initializer(bias_start))
-                    dcv3 = tf.nn.conv2d_transpose(dcv2, dcv3_f, output_shape=shape3, strides=[1, 2, 2, 1], padding='VALID') + dcv3_b
+
+                    dcv1 = tf.nn.relu(ops.deconv2d(input, shape1, name='deconv1'))
+                    dcv2 = tf.nn.relu(ops.deconv2d(dcv1, shape2, name='deconv2'))
+                    dcv3 = ops.deconv2d(dcv2, shape3, name='deconv3')
 
                 return dcv3
 
@@ -136,23 +106,28 @@ class pred_model:
 
             #fut_o
             # loss calculation
-            self.fut_loss = \
+            
+            self.fut_loss_old = \
                 tf.nn.sigmoid_cross_entropy_with_logits(logits=fut_o,
                                                         labels=tf.cast(fut_logit, tf.float32))
             ## fut_o: ?,?,4096
             ## fut_logit: ?,?,4096
 
-            self.fut_loss = tf.reduce_mean(tf.reduce_sum(self.fut_loss, [2, 3, 4]))#?,?,4096 -> ?,?,64,64,1
-
-
-            # optimizer
-            print('optimization...')
-            self.optimizer = self.__adam_optimizer_op(
-                self.fut_loss + self.weight_decay * self.__calc_weight_l2_panalty())
+            self.fut_loss = tf.reduce_mean(tf.reduce_sum(self.fut_loss_old, [2, 3, 4]))#?,?,4096 -> ?,?,64,64,1
 
             # output future frames as uint8
             print('output future frames...')
             self.fut_output = tf.cast(tf.clip_by_value(tf.sigmoid(fut_o) * 255, 0, 255), tf.uint8)
+
+            # DISCRIMINATOR
+            # fut_o.shape: batch_size/# of output frame(10)/64/64/1
+
+            self.D = Discriminator(256, tf.sigmoid(fut_o), self.fut_frames)
+
+            # optimizer
+            print('optimization...')
+
+            self.optimizer = self.__adam_optimizer_op(self.fut_loss)  # must include cross-entropy!
 
     def __lstm_cell(self, cell_dim, num_multi_cells):
 
@@ -168,9 +143,9 @@ class pred_model:
         # return multi_cell
 
         #TODO:multi cell
-        cells = [rnn.ConvLSTMCell([None, 7, 7, cell_dim], [5, 5], use_peepholes=True, forget_bias=0.,
+        cells = [rnn.ConvLSTMCell([None, 8, 8, cell_dim], [5, 5], use_peepholes=True, forget_bias=0.,
                                                        initializer=tf.random_uniform_initializer(-0.01, 0.01))
-                 for _ in xrange(num_multi_cells)]
+                 for _ in range(num_multi_cells)]
 
         multi_cell = rnn.MultiRNNCell(cells)
         return multi_cell
@@ -195,14 +170,14 @@ class pred_model:
         trainable_vnames = [v.name for v in trainable_vars]
 
         l2_loss = 0.
-        for i in xrange(len(trainable_vnames)):
+        for i in range(len(trainable_vnames)):
             if trainable_vnames[i].split('/')[-1].startswith('weights'):
                 l2_loss += tf.nn.l2_loss(trainable_vars[i])
 
         return l2_loss
 
 
-if __name__ == '__main__': 
+if __name__ == '__main__':
     opts = mm_data.BouncingMNISTDataHandler.options()
     opts.batch_size = 1  # 80
     opts.image_size = 64
@@ -211,19 +186,21 @@ if __name__ == '__main__':
     opts.step_length = 0.1
     min_loss = np.inf
     moving_mnist = mm_data.BouncingMNISTDataHandler(opts)
-    #batch_generator = moving_mnist.GetBatchThread()
-    #x_batch = batch_generator.next()    
+    batch_generator = moving_mnist.GetBatchThread()
+
     net = pred_model(batch_size=opts.batch_size)
-	
+
     sess_config = tf.ConfigProto()
-    sess_config.gpu_options.allow_growth = True    
-    saver = tf.train.Saver(max_to_keep=2)
-    dir_name = "weights_conv"
-    Vdir_name = "./Video/"
+    sess_config.gpu_options.allow_growth = True
+
+    saver = tf.train.Saver(max_to_keep=5)
+    dir_name = "weights_gan"
+    Vdir_name = "./Video_gan/"
     if not os.path.exists(dir_name):
         os.makedirs(dir_name) # make directory if not exists
     mnist = np.load('./data/moving_mnist.npy')
-    with tf.Session(config=sess_config) as sess:
+    mnist = mnist.astype(np.float) / 255 # 0~ 255 -> 0 ~ 1	
+    with tf.Session(config=sess_config) as sess:        
         init_step = 0
         if len(sys.argv) > 1 and sys.argv[1]:
             import re
@@ -233,44 +210,38 @@ if __name__ == '__main__':
 
         else:
             tf.global_variables_initializer().run()
-        mnist = mnist.astype(np.float) / 255 # 0~ 255 -> 0 ~ 1
-        
-        for step in range(0,50): # max 250            
-            #x_batch = batch_generator.next()			
-            x_batch = mnist[step].reshape((1,20,64,64))	    
+        sumloss = 0
+        numIter = 2
+        for step in xrange(0, 2):
+            #x_batch = batch_generator.next()
+            x_batch = mnist[step].reshape(1,20,64,64)            
             inp_vid, fut_vid = np.split(x_batch, 2, axis=1)
+
             inp_vid, fut_vid = np.expand_dims(inp_vid, -1), np.expand_dims(fut_vid, -1)
 
-            _, fut_loss = sess.run([net.optimizer, net.fut_loss],
+            fut_loss, G_loss, D_loss, _, _ = sess.run([net.fut_loss, net.D.G_loss,
+                                               net.D.D_loss, net.D.D_solver, net.D.G_solver],
                                    feed_dict={net.input_frames: inp_vid,
                                               net.fut_frames: fut_vid})
 
-            print ("[step %d] loss: %f" % (step, fut_loss))
-            if fut_loss < min_loss - 5: # THRESHOLD
-                saver.save(sess, dir_name+"/{}__step{}__loss{:f}".format(
-                    str(datetime.now()).replace(' ','_'),
-                    step,
-                    fut_loss
-                ))
-                min_loss = fut_loss
-
-            if step % 40 == 0:
-                o_vid = sess.run(net.fut_output, feed_dict={net.input_frames: inp_vid,
-                                                            net.fut_frames: fut_vid})
-                o_vid = o_vid[0].reshape([opts.num_frames // 2, opts.image_size, opts.image_size])
-                output_vid = np.concatenate(
-                    (np.squeeze((x_batch * 255).astype(np.uint8))[0:opts.num_frames // 2], o_vid), axis=0)
-                # threading.Thread(target=vid_show_thread, args=([output_vid])).start()
-                # Make Video with Loss.	
-                ResultData = []
-                ResultData.append(output_vid)
-                ResultData.append(np.squeeze((x_batch * 255).astype(np.uint8)).reshape((20,64,64)))
-                ResultData.append(fut_loss)           
-                DataToVideo.MakeVideo(ResultData,step,Vdir_name) # OUTPUT = output_loss_[loss]_.mp4
-                # Make /images/ folder first!
-                # MakeImage(output_vid) # argument should be 20 * 64 * 64
-				
-		#print(output_vid.shape,inp_vid.shape,fut_vid.shape)
-		#((20, 64, 64), (40, 10, 64, 64, 1), (40, 10, 64, 64, 1))
-
-#
+            print ("[step %d] fut_loss: %f, G_loss: %f, D_loss: %f" % (step, fut_loss, G_loss, D_loss))
+            sumloss += fut_loss
+            # if fut_loss < min_loss - 5: # THRESHOLD
+            #     saver.save(sess, dir_name+"/{}__step{}__loss{:f}".format(
+            #         str(datetime.now()).replace(' ','_'),
+            #         step,
+            #         fut_loss
+            #     ))
+            #     min_loss = fut_loss
+            o_vid = sess.run(net.fut_output, feed_dict={net.input_frames: inp_vid,net.fut_frames: fut_vid})
+            o_vid = o_vid[0].reshape([opts.num_frames // 2, opts.image_size, opts.image_size])
+            output_vid = np.concatenate((np.squeeze((x_batch * 255).astype(np.uint8))[0:opts.num_frames // 2], o_vid), axis=0)
+            threading.Thread(target=vid_show_thread, args=([output_vid])).start()
+            saver.save(sess, dir_name+"/{}__step{}__loss{:f}".format(str(datetime.now()).replace(' ','_'),step,fut_loss))
+            min_loss = fut_loss
+            ResultData = []
+            ResultData.append(output_vid)
+            ResultData.append(np.squeeze((x_batch * 255).astype(np.uint8)).reshape((20,64,64)))
+            ResultData.append(fut_loss)           
+            DataToVideo.MakeVideo(ResultData,step,Vdir_name)
+        print("Average Loss:" + str(sumloss / np.float(numIter)))
