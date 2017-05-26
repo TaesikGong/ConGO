@@ -15,7 +15,7 @@ def vid_show_thread(output_vid):
 
 class pred_model:
     def __init__(self):
-        with tf.device('/GPU:0'):
+        with tf.device('/GPU:1'):
             self.input_frames = tf.placeholder(tf.float32, shape=[None, None, 64, 64, 1],
                                                name='input_frames')  # batch,sqe,x,y,features
             self.fut_frames = tf.placeholder(tf.float32, shape=[None, None, 64, 64, 1], name='future_frames')

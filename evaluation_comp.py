@@ -216,7 +216,7 @@ if __name__ == '__main__':
     sess_config.gpu_options.allow_growth = True
 
     saver = tf.train.Saver(max_to_keep=2)    
-    Vdir_name = "./Video_condDec/"    
+    Vdir_name = "./Video_comp/"
     mnist = np.load('./data/moving_mnist.npy')
     mnist = mnist.astype(np.float) / 255 # 0~ 255 -> 0 ~ 1	
     sumloss = 0
