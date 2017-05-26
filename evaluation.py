@@ -232,17 +232,16 @@ if __name__ == '__main__':
 
             inp_vid, fut_vid = np.expand_dims(inp_vid, -1), np.expand_dims(fut_vid, -1)
 
-            _, fut_loss_cross= sess.run([net.optimizer, net.fut_loss],
+            fut_loss_cross= sess.run([net.fut_loss],
                                    feed_dict={net.input_frames: inp_vid,
                                               net.fut_frames: fut_vid,
-                                              net.test_case: False})
+                                              net.test_case: True})
 
             print ("[step %d] Train loss CE: %f"
                    % (step, fut_loss_cross))
 
             if step % 40 == 0:
-                o_vid, fut_loss_cross= sess.run([net.fut_output, net.fut_loss],
-                                                                            feed_dict={net.input_frames: inp_vid,
+                o_vid= sess.run([net.fut_output],feed_dict={net.input_frames: inp_vid,
                                                             net.fut_frames: fut_vid,
                                                             net.test_case: True})
 
