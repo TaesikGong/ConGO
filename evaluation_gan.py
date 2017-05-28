@@ -206,7 +206,7 @@ if __name__ == '__main__':
 
         else:
             tf.global_variables_initializer().run()
-        numIter = 5
+        numIter = 10000
         for step in xrange(0, numIter):
             x_batch = mnist[step].reshape(1,20,64,64)			
             inp_vid, fut_vid = np.split(x_batch, 2, axis=1)
@@ -217,17 +217,19 @@ if __name__ == '__main__':
                                                net.D.D_loss],
                                    feed_dict={net.input_frames: inp_vid,
                                               net.fut_frames: fut_vid})
-            print ("[step %d] loss: %f" % (step, fut_loss))
+
             min_loss = fut_loss
             sumloss+=min_loss
             o_vid = sess.run(net.fut_output, feed_dict={net.input_frames: inp_vid,net.fut_frames: fut_vid})
             o_vid = o_vid[0].reshape([opts.num_frames // 2, opts.image_size, opts.image_size])
-            output_vid = np.concatenate((np.squeeze((x_batch * 255).astype(np.uint8))[0:opts.num_frames // 2], o_vid), axis=0)            
-            ResultData = []
-            ResultData.append(output_vid)
-            ResultData.append(np.squeeze((x_batch * 255).astype(np.uint8)).reshape((20,64,64)))
-            ResultData.append(fut_loss)           
-            DataToVideo.MakeVideo(ResultData,step,Vdir_name)
+            output_vid = np.concatenate((np.squeeze((x_batch * 255).astype(np.uint8))[0:opts.num_frames // 2], o_vid), axis=0)
+            if step < 100:
+                ResultData = []
+                ResultData.append(output_vid)
+                ResultData.append(np.squeeze((x_batch * 255).astype(np.uint8)).reshape((20,64,64)))
+                ResultData.append(fut_loss)
+                DataToVideo.MakeVideo(ResultData,step,Vdir_name)
 	        #DataToImg.MakeImage(output_vid,output)
             #DataToImg.MakeImage(np.squeeze((x_batch * 255).astype(np.uint8)).reshape((20,64,64)),true)
-        print("Average Loss = " + str(sumloss/np.float(numIter)))
+            print ("[step %d] loss: %f" % (step, fut_loss) + " Average Loss = " + str(sumloss/np.float(step + 1)))
+        
