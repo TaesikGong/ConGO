@@ -230,7 +230,7 @@ if __name__ == '__main__':
 
         else:
             tf.global_variables_initializer().run()
-        numIter = 5
+        numIter = 10000
         for step in xrange(0, numIter):
             x_batch = mnist[step].reshape(1,20,64,64)			
             inp_vid, fut_vid = np.split(x_batch, 2, axis=1)
