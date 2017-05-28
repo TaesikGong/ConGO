@@ -16,7 +16,7 @@ def vid_show_thread(output_vid):
 #comment
 class pred_model:
     def __init__(self, batch_size=1):
-        with tf.device('/cpu:0'):
+        with tf.device('/gpu:1'):
             self.input_frames = tf.placeholder(tf.float32, shape=[None, None, 64, 64, 1], name='input_frames')
             self.fut_frames = tf.placeholder(tf.float32, shape=[None, None, 64, 64, 1], name='future_frames')
             self.keep_prob = tf.Variable(1.0, dtype=tf.float32, trainable=False, name='keep_prob')
@@ -240,10 +240,8 @@ if __name__ == '__main__':
             inp_vid, fut_vid = np.expand_dims(inp_vid, -1), np.expand_dims(fut_vid, -1)
 
             [fut_loss] = sess.run([net.fut_loss],feed_dict={net.input_frames: inp_vid,net.fut_frames: fut_vid})
-			
-            print ("[step %d] loss: %f" % (step, fut_loss))
             min_loss = fut_loss
-            sumloss+=min_loss
+            sumloss += min_loss
             o_vid = sess.run(net.fut_output, feed_dict={net.input_frames: inp_vid,net.fut_frames: fut_vid})
             o_vid = o_vid[0].reshape([opts.num_frames // 2, opts.image_size, opts.image_size])
             output_vid = np.concatenate((np.squeeze((x_batch * 255).astype(np.uint8))[0:opts.num_frames // 2], o_vid), axis=0)
@@ -255,4 +253,5 @@ if __name__ == '__main__':
                 DataToVideo.MakeVideo(ResultData,step,Vdir_name)
 	        #DataToImg.MakeImage(output_vid,output)
             #DataToImg.MakeImage(np.squeeze((x_batch * 255).astype(np.uint8)).reshape((20,64,64)),true)
-        print("Average Loss = " + str(sumloss/np.float(numIter)))
+            print ("[step %d] loss: %f" % (step, fut_loss) + " Average Loss = " + str(sumloss/np.float(step+1)))
+            #print("Average Loss = " + str(sumloss/np.float(numIter)))
