@@ -5,8 +5,9 @@ cs570_2017_spring_term project
 [mnist.h5](https://drive.google.com/open?id=0B3kZyL62Zw6vOUJVUE94R3FjVjQ) (need to be installed & located at "data/")
 
 ## Branches
-- master branch: (1)train_example: simple LSTM, (2) train_example_conv: Conv+deconv + convLSTM
-- condDec branch: master/train_example_conv + conditioned decoder
+- master branch: train_example: simple LSTM, 
+- convLSTM branch: train_example_conv: Deep convLSTM
+- condDec branch: Deep conv LSTM + conditioned decoder
 - composite branch : composite decoder
 - ccc branch : composite + conditioned decoder
 - GAN branch: GAN
