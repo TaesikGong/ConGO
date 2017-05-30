@@ -1,4 +1,4 @@
-# ConGO
+# DCCC-LSTM
 cs570_2017_spring_term project
 
 ## Required
