@@ -1,13 +1,14 @@
-import tensorflow as tf
-import threading, cv2
-import numpy as np
-import util.rnn_ops_conv as rnn
-import data.moving_mnist as mm_data
-import os
 import sys
-from datetime import datetime
-import DataToVideo
-import DataToImg
+
+import cv2
+import numpy as np
+import tensorflow as tf
+import util.rnn_ops_conv as rnn
+
+import ConGO.DataToVideo
+import ConGO.data.moving_mnist as mm_data
+
+
 def vid_show_thread(output_vid):
     for i in xrange(output_vid.shape[0]):
         cv2.imshow('vid', output_vid[i])
@@ -259,7 +260,7 @@ if __name__ == '__main__':
             ResultData.append(output_vid)
             ResultData.append(np.squeeze((x_batch * 255).astype(np.uint8)).reshape((20,64,64)))
             ResultData.append(fut_loss)           
-            DataToVideo.MakeVideo(ResultData,step,Vdir_name)
+            ConGO.DataToVideo.MakeVideo(ResultData, step, Vdir_name)
 	        #DataToImg.MakeImage(output_vid,output)
             #DataToImg.MakeImage(np.squeeze((x_batch * 255).astype(np.uint8)).reshape((20,64,64)),true)
         print("Average Loss = " + str(sumloss/np.float(numIter)))

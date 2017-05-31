@@ -1,11 +1,15 @@
-import tensorflow as tf
-import threading, cv2
-import numpy as np
-import util.rnn_ops_conv as rnn
-import data.moving_mnist as mm_data
+import cv2
 import os
 import sys
+import threading
 from datetime import datetime
+
+import numpy as np
+import tensorflow as tf
+import util.rnn_ops_conv as rnn
+
+import ConGO.data.moving_mnist as mm_data
+
 
 def vid_show_thread(output_vid):
     for i in xrange(output_vid.shape[0]):
