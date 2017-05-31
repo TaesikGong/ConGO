@@ -1,13 +1,17 @@
-import tensorflow as tf
-import threading, cv2
-import numpy as np
-import util.rnn_ops_conv as rnn
-import util.general_ops as ops
-import data.moving_mnist as mm_data
 import os
 import sys
+import threading
 from datetime import datetime
-from discriminator import Discriminator
+
+import cv2
+import numpy as np
+import tensorflow as tf
+
+import ConGO.GAN.util.general_ops as ops
+import ConGO.GAN.util.rnn_ops_conv as rnn
+import ConGO.data.moving_mnist as mm_data
+from ConGO.GAN.discriminator import Discriminator
+
 
 def vid_show_thread(output_vid):
     for i in range(output_vid.shape[0]):
