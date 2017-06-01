@@ -4,13 +4,13 @@ cs570_2017_spring_term project
 ## Required
 [mnist.h5](https://drive.google.com/open?id=0B3kZyL62Zw6vOUJVUE94R3FjVjQ) (need to be installed & located at "data/")
 
-## Branches
-- master branch: train_example: simple LSTM, 
-- convLSTM branch: train_example_conv: Deep convLSTM
-- condDec branch: Deep conv LSTM + conditioned decoder
-- composite branch : composite decoder
-- ccc branch : composite + conditioned decoder
-- GAN branch: GAN
+## Folders
+DC-LSTM/	Deep ConvLSTM
+DCCC-LSTM/	Deep Conditioned Composite ConvLSTM 
+DCComp-LSTM/	Deep Composite ConvLSTM 
+DCCond-LSTM/	Deep Conditioned ConvLSTM 
+GAN/	GAN
+basicLSTM/ simple single layer LSTM
 
 ## Weight save & load
 
