@@ -6,10 +6,15 @@ cs570_2017_spring_term project
 
 ## Folders
 DC-LSTM/	Deep ConvLSTM
+
 DCCC-LSTM/	Deep Conditioned Composite ConvLSTM 
+
 DCComp-LSTM/	Deep Composite ConvLSTM 
+
 DCCond-LSTM/	Deep Conditioned ConvLSTM 
+
 GAN/	GAN
+
 basicLSTM/ simple single layer LSTM
 
 ## Weight save & load
