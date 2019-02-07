@@ -19,14 +19,14 @@ basicLSTM/ simple single layer LSTM
 
 ## Weight save & load
 
-### save하기
-- train_example: weights 폴더에 저장됨
-- train_example_conv: weights_conv 폴더에 저장됨
+### How to save
+- train_example: will be saved into weights folder
+- train_example_conv: will be save into weights_conv folder
 
-### 저장된 weight restore하기
-argv[1]에 weight 파일명을 입력하는데, 확장자명을 빼야 함.
+### How to restore weights
+argv[1] gets a weight file path, without a file extension.
 
-loss~.~~~~~~ (소수점 밑 6자리까지)
+loss~.~~~~~~
 
 ```bash
 $ python train_example.py weights/2017-05-10_22:51:26.218343__step0__loss2839.130859
@@ -40,8 +40,8 @@ $ python evaluation.py [weight-set]
 $ python evaluation_conv.py [weight-set]
 ```
 
- 기존 프로그램과 실행방법 동일하며, 실행시 Video폴더가 생성되며, 그안에 비디오들이 저장됨.
+ Video folder will be created on execution. Videos will be saved into the folder.
  
  Test data set :  https://drive.google.com/open?id=0B4DyTsz0E9HFakRhb2FPVzJieUE
+ We edited the original moving mnist dataset so that the sequency of array is different for our convenience.
  
- (편의상 배열 형태만 수정해서 저장한 것으로, 기존 Moving mnist 데이터와 배열이 다름)
